@@ -8,6 +8,7 @@
 namespace GHLContactSync;
 
 use GHLContactSync\Admin\Admin;
+use GHLContactSync\Forms\Form_Renderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
@@ -40,6 +41,13 @@ final class Plugin {
 	private $update_checker;
 
 	/**
+	 * Frontend form renderer.
+	 *
+	 * @var Form_Renderer
+	 */
+	private $form_renderer;
+
+	/**
 	 * Get singleton instance.
 	 *
 	 * @return Plugin
@@ -58,6 +66,7 @@ final class Plugin {
 	private function __construct() {
 		$this->admin          = new Admin();
 		$this->update_checker = new Update_Checker();
+		$this->form_renderer  = new Form_Renderer();
 	}
 
 	/**
@@ -74,6 +83,7 @@ final class Plugin {
 			$this->admin->hooks();
 		}
 
+		$this->form_renderer->hooks();
 		$this->update_checker->hooks();
 	}
 
