@@ -16,6 +16,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 final class Update_Checker {
 
+	const DEFAULT_REPOSITORY_URL = 'https://github.com/phamdinhtri123/ghl-contact-sync/';
+
 	/**
 	 * Register update checker on plugins_loaded.
 	 *
@@ -74,7 +76,7 @@ final class Update_Checker {
 
 		$settings = get_option( 'ghlcs_settings', array() );
 
-		return ! empty( $settings['update_repository_url'] ) ? esc_url_raw( $settings['update_repository_url'] ) : '';
+		return ! empty( $settings['update_repository_url'] ) ? esc_url_raw( $settings['update_repository_url'] ) : self::DEFAULT_REPOSITORY_URL;
 	}
 
 	/**
