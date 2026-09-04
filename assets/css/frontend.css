@@ -94,6 +94,7 @@
 	font-weight: 500;
 	line-height: 1.4;
 	min-height: 20px;
+	text-align: center;
 }
 
 .ghlcs-response.is-success {

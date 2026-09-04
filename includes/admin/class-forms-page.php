@@ -123,6 +123,7 @@ final class Forms_Page {
 				<thead>
 					<tr>
 						<th><?php esc_html_e( 'Form Name', 'ghl-contact-sync' ); ?></th>
+						<th><?php esc_html_e( 'Source', 'ghl-contact-sync' ); ?></th>
 						<th><?php esc_html_e( 'Form Type', 'ghl-contact-sync' ); ?></th>
 						<th><?php esc_html_e( 'Shortcode', 'ghl-contact-sync' ); ?></th>
 						<th><?php esc_html_e( 'Submissions', 'ghl-contact-sync' ); ?></th>
@@ -134,15 +135,22 @@ final class Forms_Page {
 				<tbody>
 					<?php if ( empty( $forms ) ) : ?>
 						<tr>
-							<td colspan="7"><?php esc_html_e( 'No forms found. Create your first form to get a shortcode.', 'ghl-contact-sync' ); ?></td>
+							<td colspan="8"><?php esc_html_e( 'No forms found. Create your first form to get a shortcode.', 'ghl-contact-sync' ); ?></td>
 						</tr>
 					<?php else : ?>
 						<?php foreach ( $forms as $form ) : ?>
 							<?php $shortcode = sprintf( '[ghl_form id="%d"]', $form['id'] ); ?>
 							<tr>
 								<td><strong><a href="<?php echo esc_url( admin_url( 'admin.php?page=ghl-contact-sync-add&form_id=' . absint( $form['id'] ) ) ); ?>"><?php echo esc_html( $form['name'] ); ?></a></strong></td>
+								<td><?php echo esc_html( 'external' === $form['render_mode'] ? __( 'External Form', 'ghl-contact-sync' ) : __( 'Plugin Form', 'ghl-contact-sync' ) ); ?></td>
 								<td><?php echo esc_html( 'contact' === $form['type'] ? __( 'Contact Form', 'ghl-contact-sync' ) : __( 'Newsletter', 'ghl-contact-sync' ) ); ?></td>
-								<td><code class="ghlcs-shortcode"><?php echo esc_html( $shortcode ); ?></code> <button type="button" class="button button-small ghlcs-copy-shortcode" data-shortcode="<?php echo esc_attr( $shortcode ); ?>"><?php esc_html_e( 'Copy', 'ghl-contact-sync' ); ?></button></td>
+								<td>
+									<?php if ( 'external' === $form['render_mode'] ) : ?>
+										<code><?php echo esc_html( $form['external_container'] ); ?></code>
+									<?php else : ?>
+										<code class="ghlcs-shortcode"><?php echo esc_html( $shortcode ); ?></code> <button type="button" class="button button-small ghlcs-copy-shortcode" data-shortcode="<?php echo esc_attr( $shortcode ); ?>"><?php esc_html_e( 'Copy', 'ghl-contact-sync' ); ?></button>
+									<?php endif; ?>
+								</td>
 								<td><?php echo esc_html( $this->forms->count_submissions( $form['id'] ) ); ?></td>
 								<td><span class="ghlcs-status-pill is-<?php echo esc_attr( $form['status'] ); ?>"><?php echo esc_html( ucfirst( $form['status'] ) ); ?></span></td>
 								<td><?php echo esc_html( mysql2date( get_option( 'date_format' ), $form['created_at'] ) ); ?></td>

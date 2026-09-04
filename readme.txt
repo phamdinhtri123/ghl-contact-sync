@@ -16,6 +16,12 @@ GHL Contact Sync lets WordPress administrators manage reusable forms and prepare
 
 == Changelog ==
 
+= 1.0.1 =
+* Added frontend form submission handling with AJAX.
+* Added local submission storage before syncing to GoHighLevel.
+* Added support for external existing forms using wrapper, field, and submit button selectors.
+* Added success/error response handling for shortcode and external forms.
+
 = 1.0.0 =
 * Fixed frontend form submission, local submission storage, and GHL contact sync.
 

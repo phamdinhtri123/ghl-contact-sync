@@ -56,6 +56,7 @@ final class Form_Editor {
 		$form_id = isset( $_POST['form_id'] ) ? absint( $_POST['form_id'] ) : 0;
 		$config  = array(
 			'name'             => isset( $_POST['form_name'] ) ? wp_unslash( $_POST['form_name'] ) : '',
+			'render_mode'      => isset( $_POST['render_mode'] ) ? wp_unslash( $_POST['render_mode'] ) : 'plugin',
 			'type'             => isset( $_POST['form_type'] ) ? wp_unslash( $_POST['form_type'] ) : 'newsletter',
 			'status'           => isset( $_POST['form_status'] ) ? wp_unslash( $_POST['form_status'] ) : 'active',
 			'layout'           => isset( $_POST['layout'] ) ? wp_unslash( $_POST['layout'] ) : '',
@@ -70,6 +71,9 @@ final class Form_Editor {
 			'ghl_enabled'      => isset( $_POST['ghl_enabled'] ) ? 1 : 0,
 			'tags'             => isset( $_POST['tags'] ) ? wp_unslash( $_POST['tags'] ) : '',
 			'source'           => isset( $_POST['source'] ) ? wp_unslash( $_POST['source'] ) : '',
+			'external_container' => isset( $_POST['external_container'] ) ? wp_unslash( $_POST['external_container'] ) : '',
+			'external_submit'  => isset( $_POST['external_submit'] ) ? wp_unslash( $_POST['external_submit'] ) : '',
+			'external_fields'  => $this->posted_external_fields(),
 		);
 
 		$saved_id = $this->forms->save( $config, $form_id );
@@ -143,6 +147,16 @@ final class Form_Editor {
 								<td><input type="text" id="ghlcs-form-name" name="form_name" class="regular-text" value="<?php echo esc_attr( $form['name'] ); ?>" required></td>
 							</tr>
 							<tr>
+								<th scope="row"><label for="ghlcs-render-mode"><?php esc_html_e( 'Form Source', 'ghl-contact-sync' ); ?></label></th>
+								<td>
+									<select id="ghlcs-render-mode" name="render_mode">
+										<option value="plugin" <?php selected( $form['render_mode'], 'plugin' ); ?>><?php esc_html_e( 'Plugin shortcode form', 'ghl-contact-sync' ); ?></option>
+										<option value="external" <?php selected( $form['render_mode'], 'external' ); ?>><?php esc_html_e( 'External existing form', 'ghl-contact-sync' ); ?></option>
+									</select>
+									<p class="description"><?php esc_html_e( 'Use a plugin-rendered shortcode form, or connect this form action to an existing popup/block form by CSS selectors.', 'ghl-contact-sync' ); ?></p>
+								</td>
+							</tr>
+							<tr class="ghlcs-plugin-mode-row">
 								<th scope="row"><label for="ghlcs-form-type"><?php esc_html_e( 'Form Type', 'ghl-contact-sync' ); ?></label></th>
 								<td>
 									<select id="ghlcs-form-type" name="form_type">
@@ -162,7 +176,7 @@ final class Form_Editor {
 								</td>
 							</tr>
 							<?php if ( $form_id ) : ?>
-								<tr>
+								<tr class="ghlcs-plugin-mode-row">
 									<th scope="row"><?php esc_html_e( 'Shortcode', 'ghl-contact-sync' ); ?></th>
 									<td><code>[ghl_form id="<?php echo esc_html( $form_id ); ?>"]</code></td>
 								</tr>
@@ -171,7 +185,7 @@ final class Form_Editor {
 					</table>
 				</div>
 
-				<div class="ghlcs-panel">
+				<div class="ghlcs-panel ghlcs-plugin-mode-panel">
 					<h2><?php esc_html_e( 'Layout & Style', 'ghl-contact-sync' ); ?></h2>
 					<table class="form-table" role="presentation">
 						<tbody>
@@ -194,7 +208,7 @@ final class Form_Editor {
 					</table>
 				</div>
 
-				<div class="ghlcs-panel">
+				<div class="ghlcs-panel ghlcs-plugin-mode-panel">
 					<h2><?php esc_html_e( 'Fields', 'ghl-contact-sync' ); ?></h2>
 					<p><?php esc_html_e( 'Version 1 currently creates the default fields for the selected form type. Full drag-and-drop field editing will be added in the next form-builder pass.', 'ghl-contact-sync' ); ?></p>
 					<ul class="ghlcs-field-preview">
@@ -206,6 +220,38 @@ final class Form_Editor {
 							</li>
 						<?php endforeach; ?>
 					</ul>
+				</div>
+
+				<div class="ghlcs-panel ghlcs-external-mode-panel">
+					<h2><?php esc_html_e( 'External Form Selectors', 'ghl-contact-sync' ); ?></h2>
+					<table class="form-table" role="presentation">
+						<tbody>
+							<tr>
+								<th scope="row"><label for="ghlcs-external-container"><?php esc_html_e( 'Container / Wrapper Selector', 'ghl-contact-sync' ); ?></label></th>
+								<td>
+									<input type="text" id="ghlcs-external-container" name="external_container" class="regular-text code" value="<?php echo esc_attr( $form['external_container'] ); ?>" placeholder="#newsletter-popup">
+									<p class="description"><?php esc_html_e( 'Enter the CSS selector for the block that contains the form. Field selectors below are searched only inside this container.', 'ghl-contact-sync' ); ?></p>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Field Selectors', 'ghl-contact-sync' ); ?></th>
+								<td>
+									<div class="ghlcs-external-fields" data-next-index="<?php echo esc_attr( count( $form['external_fields'] ) ); ?>">
+										<?php foreach ( $form['external_fields'] as $index => $external_field ) : ?>
+											<?php $this->render_external_field_row( $external_field, $index ); ?>
+										<?php endforeach; ?>
+									</div>
+									<button type="button" class="button button-secondary ghlcs-add-external-field"><?php esc_html_e( 'Add Field', 'ghl-contact-sync' ); ?></button>
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><label for="ghlcs-external-submit"><?php esc_html_e( 'Submit Button Selector', 'ghl-contact-sync' ); ?></label></th>
+								<td>
+									<input type="text" id="ghlcs-external-submit" name="external_submit" class="regular-text code" value="<?php echo esc_attr( $form['external_submit'] ); ?>" placeholder="button[type=&quot;submit&quot;]">
+								</td>
+							</tr>
+						</tbody>
+					</table>
 				</div>
 
 				<div class="ghlcs-panel">
@@ -271,6 +317,129 @@ final class Form_Editor {
 				</p>
 			</form>
 		</div>
+		<script type="text/html" id="tmpl-ghlcs-external-field-row">
+			<?php
+			$this->render_external_field_row(
+				array(
+					'key'         => 'phone',
+					'label'       => 'Phone',
+					'selector'    => '',
+					'required'    => false,
+					'ghl_mapping' => 'phone',
+				),
+				'__INDEX__'
+			);
+			?>
+		</script>
+		<script>
+			(function() {
+				var mode = document.getElementById('ghlcs-render-mode');
+				var fields = document.querySelector('.ghlcs-external-fields');
+				var add = document.querySelector('.ghlcs-add-external-field');
+				var template = document.getElementById('tmpl-ghlcs-external-field-row');
+
+				function toggleMode() {
+					var external = mode && mode.value === 'external';
+					document.querySelectorAll('.ghlcs-plugin-mode-row, .ghlcs-plugin-mode-panel').forEach(function(el) {
+						el.style.display = external ? 'none' : '';
+					});
+					document.querySelectorAll('.ghlcs-external-mode-panel').forEach(function(el) {
+						el.style.display = external ? '' : 'none';
+					});
+				}
+
+				function refreshRemoveButtons() {
+					document.querySelectorAll('.ghlcs-remove-external-field').forEach(function(button) {
+						button.onclick = function() {
+							button.closest('.ghlcs-external-field-row').remove();
+						};
+					});
+				}
+
+				if (mode) {
+					mode.addEventListener('change', toggleMode);
+					toggleMode();
+				}
+
+				if (fields && add && template) {
+					add.addEventListener('click', function() {
+						var index = fields.getAttribute('data-next-index') || '0';
+						fields.insertAdjacentHTML('beforeend', template.innerHTML.replace(/__INDEX__/g, index));
+						fields.setAttribute('data-next-index', String(parseInt(index, 10) + 1));
+						refreshRemoveButtons();
+					});
+					refreshRemoveButtons();
+				}
+			}());
+		</script>
 		<?php
+	}
+
+	/**
+	 * Get external selector field rows from POST.
+	 *
+	 * @return array
+	 */
+	private function posted_external_fields() {
+		$keys      = isset( $_POST['external_field_key'] ) && is_array( $_POST['external_field_key'] ) ? wp_unslash( $_POST['external_field_key'] ) : array();
+		$selectors = isset( $_POST['external_field_selector'] ) && is_array( $_POST['external_field_selector'] ) ? wp_unslash( $_POST['external_field_selector'] ) : array();
+		$required  = isset( $_POST['external_field_required'] ) && is_array( $_POST['external_field_required'] ) ? wp_unslash( $_POST['external_field_required'] ) : array();
+		$fields    = array();
+
+		foreach ( $selectors as $index => $selector ) {
+			$fields[] = array(
+				'key'         => $keys[ $index ] ?? 'custom',
+				'selector'    => $selector,
+				'required'    => isset( $required[ $index ] ),
+				'ghl_mapping' => $this->default_mapping_for_key( $keys[ $index ] ?? 'custom' ),
+			);
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Render one external selector field row.
+	 *
+	 * @param array      $field External field config.
+	 * @param int|string $index Field index.
+	 * @return void
+	 */
+	private function render_external_field_row( array $field, $index ) {
+		$key = $field['key'] ?? 'custom';
+		?>
+		<div class="ghlcs-external-field-row">
+			<select name="external_field_key[<?php echo esc_attr( $index ); ?>]">
+				<option value="email" <?php selected( $key, 'email' ); ?>><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></option>
+				<option value="phone" <?php selected( $key, 'phone' ); ?>><?php esc_html_e( 'Phone', 'ghl-contact-sync' ); ?></option>
+				<option value="first_name" <?php selected( $key, 'first_name' ); ?>><?php esc_html_e( 'First Name', 'ghl-contact-sync' ); ?></option>
+				<option value="last_name" <?php selected( $key, 'last_name' ); ?>><?php esc_html_e( 'Last Name', 'ghl-contact-sync' ); ?></option>
+				<option value="message" <?php selected( $key, 'message' ); ?>><?php esc_html_e( 'Message', 'ghl-contact-sync' ); ?></option>
+				<option value="custom" <?php selected( $key, 'custom' ); ?>><?php esc_html_e( 'Custom', 'ghl-contact-sync' ); ?></option>
+			</select>
+			<input type="text" name="external_field_selector[<?php echo esc_attr( $index ); ?>]" class="regular-text code" value="<?php echo esc_attr( $field['selector'] ?? '' ); ?>" placeholder="input[name=&quot;email&quot;]">
+			<label><input type="checkbox" name="external_field_required[<?php echo esc_attr( $index ); ?>]" value="1" <?php checked( ! empty( $field['required'] ) ); ?>> <?php esc_html_e( 'Required', 'ghl-contact-sync' ); ?></label>
+			<button type="button" class="button button-link-delete ghlcs-remove-external-field"><?php esc_html_e( 'Remove', 'ghl-contact-sync' ); ?></button>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Get the default GHL mapping for an external field type.
+	 *
+	 * @param string $key Field key.
+	 * @return string
+	 */
+	private function default_mapping_for_key( $key ) {
+		$map = array(
+			'email'      => 'email',
+			'phone'      => 'phone',
+			'first_name' => 'firstName',
+			'last_name'  => 'lastName',
+			'message'    => '',
+			'custom'     => '',
+		);
+
+		return $map[ sanitize_key( $key ) ] ?? '';
 	}
 }

@@ -64,6 +64,24 @@ final class Form_Repository {
 	}
 
 	/**
+	 * Get active external form configurations.
+	 *
+	 * @return array
+	 */
+	public function active_external() {
+		$forms = $this->all();
+
+		return array_values(
+			array_filter(
+				$forms,
+				static function ( $form ) {
+					return 'active' === $form['status'] && 'external' === $form['render_mode'] && ! empty( $form['external_container'] );
+				}
+			)
+		);
+	}
+
+	/**
 	 * Save a form.
 	 *
 	 * @param array $config Form config.
@@ -161,6 +179,7 @@ final class Form_Repository {
 
 		$base = array(
 			'name'             => '',
+			'render_mode'      => 'plugin',
 			'type'             => $type,
 			'status'           => 'active',
 			'layout'           => 'newsletter' === $type ? 'inline' : 'grid',
@@ -176,6 +195,9 @@ final class Form_Repository {
 			'tags'             => 'newsletter' === $type ? 'newsletter' : 'website-lead',
 			'source'           => 'newsletter' === $type ? __( 'Website Newsletter', 'ghl-contact-sync' ) : __( 'Website Contact Form', 'ghl-contact-sync' ),
 			'fields'           => array(),
+			'external_container' => '',
+			'external_submit'  => '',
+			'external_fields'  => array(),
 		);
 
 		if ( 'newsletter' === $type ) {
@@ -215,6 +237,8 @@ final class Form_Repository {
 		$type   = ! empty( $config['type'] ) && 'contact' === $config['type'] ? 'contact' : 'newsletter';
 		$config = wp_parse_args( $config, $this->defaults( $type ) );
 		$config['theme'] = 'theme-1';
+		$config['render_mode'] = ! empty( $config['render_mode'] ) && 'external' === $config['render_mode'] ? 'external' : 'plugin';
+		$config['external_fields'] = $this->normalize_external_fields( $config['external_fields'] ?? array() );
 
 		$config['id']         = (int) $post->ID;
 		$config['name']       = $post->post_title;
@@ -235,6 +259,7 @@ final class Form_Repository {
 		$clean = wp_parse_args( array(), $this->defaults( $type ) );
 
 		$clean['name']             = ! empty( $config['name'] ) ? sanitize_text_field( $config['name'] ) : __( 'Untitled Form', 'ghl-contact-sync' );
+		$clean['render_mode']      = ! empty( $config['render_mode'] ) && 'external' === $config['render_mode'] ? 'external' : 'plugin';
 		$clean['type']             = $type;
 		$clean['status']           = ! empty( $config['status'] ) && 'inactive' === $config['status'] ? 'inactive' : 'active';
 		$clean['layout']           = ! empty( $config['layout'] ) ? sanitize_key( $config['layout'] ) : $clean['layout'];
@@ -250,7 +275,64 @@ final class Form_Repository {
 		$clean['tags']             = ! empty( $config['tags'] ) ? sanitize_text_field( $config['tags'] ) : '';
 		$clean['source']           = ! empty( $config['source'] ) ? sanitize_text_field( $config['source'] ) : '';
 		$clean['fields']           = $this->defaults( $type )['fields'];
+		$clean['external_container'] = ! empty( $config['external_container'] ) ? sanitize_text_field( $config['external_container'] ) : '';
+		$clean['external_submit']  = ! empty( $config['external_submit'] ) ? sanitize_text_field( $config['external_submit'] ) : '';
+		$clean['external_fields']  = $this->normalize_external_fields( $config['external_fields'] ?? array() );
 
 		return $clean;
+	}
+
+	/**
+	 * Normalize external selector fields.
+	 *
+	 * @param array $fields External field config.
+	 * @return array
+	 */
+	private function normalize_external_fields( array $fields ) {
+		$normalized = array();
+		$allowed    = array(
+			'email'      => 'email',
+			'phone'      => 'phone',
+			'first_name' => 'firstName',
+			'last_name'  => 'lastName',
+			'message'    => '',
+			'custom'     => '',
+		);
+
+		foreach ( $fields as $field ) {
+			if ( ! is_array( $field ) ) {
+				continue;
+			}
+
+			$key      = ! empty( $field['key'] ) ? sanitize_key( $field['key'] ) : 'custom';
+			$key      = isset( $allowed[ $key ] ) ? $key : 'custom';
+			$selector = ! empty( $field['selector'] ) ? sanitize_text_field( $field['selector'] ) : '';
+
+			if ( '' === $selector ) {
+				continue;
+			}
+
+			$mapping = isset( $field['ghl_mapping'] ) ? sanitize_text_field( $field['ghl_mapping'] ) : $allowed[ $key ];
+
+			$normalized[] = array(
+				'key'         => $key,
+				'label'       => ! empty( $field['label'] ) ? sanitize_text_field( $field['label'] ) : ucfirst( str_replace( '_', ' ', $key ) ),
+				'selector'    => $selector,
+				'required'    => ! empty( $field['required'] ),
+				'ghl_mapping' => $mapping,
+			);
+		}
+
+		if ( empty( $normalized ) ) {
+			$normalized[] = array(
+				'key'         => 'email',
+				'label'       => __( 'Email', 'ghl-contact-sync' ),
+				'selector'    => '',
+				'required'    => true,
+				'ghl_mapping' => 'email',
+			);
+		}
+
+		return $normalized;
 	}
 }

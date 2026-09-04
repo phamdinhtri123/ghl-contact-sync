@@ -183,3 +183,24 @@
 	color: #646970;
 	font-style: normal;
 }
+
+.ghlcs-external-fields {
+	display: grid;
+	gap: 10px;
+	margin-bottom: 10px;
+}
+
+.ghlcs-external-field-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.ghlcs-external-field-row select {
+	min-width: 140px;
+}

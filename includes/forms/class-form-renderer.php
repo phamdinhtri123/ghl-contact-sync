@@ -40,6 +40,7 @@ final class Form_Renderer {
 	 */
 	public function hooks() {
 		add_shortcode( 'ghl_form', array( $this, 'render_shortcode' ) );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_external_assets' ) );
 		add_action( 'wp_ajax_ghlcs_submit_form', array( $this, 'submit_form' ) );
 		add_action( 'wp_ajax_nopriv_ghlcs_submit_form', array( $this, 'submit_form' ) );
 	}
@@ -69,6 +70,10 @@ final class Form_Renderer {
 
 		if ( ! $form ) {
 			return current_user_can( 'manage_options' ) ? esc_html__( 'GHL form not found.', 'ghl-contact-sync' ) : '';
+		}
+
+		if ( 'external' === $form['render_mode'] ) {
+			return current_user_can( 'manage_options' ) ? esc_html__( 'This GHL form is connected to an external form by selectors.', 'ghl-contact-sync' ) : '';
 		}
 
 		if ( 'active' !== $form['status'] ) {
@@ -113,19 +118,23 @@ final class Form_Renderer {
 	public function submit_form() {
 		$form_id = isset( $_POST['ghlcs_form_id'] ) ? absint( $_POST['ghlcs_form_id'] ) : 0;
 
-		if ( ! $form_id || ! check_ajax_referer( 'ghlcs_submit_form_' . $form_id, 'ghlcs_nonce', false ) ) {
-			wp_send_json_error(
-				array( 'message' => __( 'Form security check failed. Please refresh and try again.', 'ghl-contact-sync' ) ),
-				403
-			);
-		}
-
 		$form = $this->forms->get( $form_id );
 
 		if ( ! $form || 'active' !== $form['status'] ) {
 			wp_send_json_error(
 				array( 'message' => __( 'This form is not available.', 'ghl-contact-sync' ) ),
 				404
+			);
+		}
+
+		$nonce_ok = 'external' === $form['render_mode']
+			? check_ajax_referer( 'ghlcs_external_submit', 'ghlcs_external_nonce', false )
+			: check_ajax_referer( 'ghlcs_submit_form_' . $form_id, 'ghlcs_nonce', false );
+
+		if ( ! $nonce_ok ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Form security check failed. Please refresh and try again.', 'ghl-contact-sync' ) ),
+				403
 			);
 		}
 
@@ -220,10 +229,25 @@ final class Form_Renderer {
 			'ghlcs-frontend',
 			'ghlcsFrontend',
 			array(
-				'ajaxUrl' => admin_url( 'admin-ajax.php' ),
-				'action'  => 'ghlcs_submit_form',
+				'ajaxUrl'       => admin_url( 'admin-ajax.php' ),
+				'action'        => 'ghlcs_submit_form',
+				'externalNonce' => wp_create_nonce( 'ghlcs_external_submit' ),
+				'externalForms' => $this->external_forms_for_script(),
 			)
 		);
+	}
+
+	/**
+	 * Enqueue frontend assets when active external forms exist.
+	 *
+	 * @return void
+	 */
+	public function enqueue_external_assets() {
+		if ( empty( $this->forms->active_external() ) ) {
+			return;
+		}
+
+		$this->enqueue_assets();
 	}
 
 	/**
@@ -235,7 +259,7 @@ final class Form_Renderer {
 	private function sanitize_submission_data( array $form ) {
 		$data = array();
 
-		foreach ( $form['fields'] as $field ) {
+		foreach ( $this->submission_fields( $form ) as $field ) {
 			$name     = sanitize_key( $field['id'] );
 			$raw      = isset( $_POST[ $name ] ) ? wp_unslash( $_POST[ $name ] ) : '';
 			$value    = 'textarea' === $field['type'] ? sanitize_textarea_field( $raw ) : sanitize_text_field( $raw );
@@ -277,7 +301,7 @@ final class Form_Renderer {
 			$payload['tags'] = array_filter( array_map( 'trim', explode( ',', $form['tags'] ) ) );
 		}
 
-		foreach ( $form['fields'] as $field ) {
+		foreach ( $this->submission_fields( $form ) as $field ) {
 			if ( empty( $field['ghl_mapping'] ) ) {
 				continue;
 			}
@@ -326,5 +350,62 @@ final class Form_Renderer {
 		$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : '';
 
 		return '' === $ip ? '' : wp_hash( $ip );
+	}
+
+	/**
+	 * Build external form configs for frontend JavaScript.
+	 *
+	 * @return array
+	 */
+	private function external_forms_for_script() {
+		$configs = array();
+
+		foreach ( $this->forms->active_external() as $form ) {
+			$configs[] = array(
+				'id'              => (int) $form['id'],
+				'container'       => $form['external_container'],
+				'submit'          => $form['external_submit'],
+				'loadingText'     => $form['loading_text'],
+				'errorMessage'    => $form['error_message'],
+				'externalFields'  => array_map(
+					static function ( $field ) {
+						return array(
+							'key'      => $field['key'],
+							'selector' => $field['selector'],
+						);
+					},
+					$form['external_fields']
+				),
+			);
+		}
+
+		return $configs;
+	}
+
+	/**
+	 * Get normalized submitted fields for plugin or external modes.
+	 *
+	 * @param array $form Form config.
+	 * @return array
+	 */
+	private function submission_fields( array $form ) {
+		if ( 'external' !== $form['render_mode'] ) {
+			return $form['fields'];
+		}
+
+		$fields = array();
+
+		foreach ( $form['external_fields'] as $field ) {
+			$key = sanitize_key( $field['key'] );
+
+			$fields[] = array(
+				'id'          => $key,
+				'type'        => 'email' === $key ? 'email' : ( 'message' === $key ? 'textarea' : 'text' ),
+				'required'    => ! empty( $field['required'] ),
+				'ghl_mapping' => $field['ghl_mapping'] ?? '',
+			);
+		}
+
+		return $fields;
 	}
 }
