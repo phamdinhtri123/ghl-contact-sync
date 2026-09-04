@@ -7,6 +7,7 @@
 
 namespace GHLContactSync\Admin;
 
+use GHLContactSync\GHL\GHL_Client;
 use GHLContactSync\Security\Token_Encryption;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -28,7 +29,7 @@ final class Settings_Page {
 	}
 
 	/**
-	 * Save settings.
+	 * Save settings and optionally test the GHL connection.
 	 *
 	 * @return void
 	 */
@@ -48,6 +49,7 @@ final class Settings_Page {
 		if ( ! defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' ) ) {
 			if ( ! empty( $_POST['remove_access_token'] ) ) {
 				$settings['access_token_encrypted'] = '';
+				delete_option( 'ghlcs_last_connection_test' );
 			} elseif ( ! empty( $_POST['access_token'] ) ) {
 				$encrypted_token = Token_Encryption::encrypt_token( sanitize_text_field( wp_unslash( $_POST['access_token'] ) ) );
 
@@ -63,6 +65,15 @@ final class Settings_Page {
 		$settings['delete_data_on_uninstall'] = empty( $_POST['delete_data_on_uninstall'] ) ? 0 : 1;
 
 		update_option( 'ghlcs_settings', $settings, false );
+
+		if ( ! empty( $_POST['test_connection'] ) ) {
+			$client = new GHL_Client( $settings );
+			$result = $client->test_connection();
+
+			update_option( 'ghlcs_last_connection_test', $result, false );
+
+			$this->redirect_with_message( ! empty( $result['connected'] ) && ! empty( $result['contacts_accessible'] ) ? 'test_success' : 'test_failed' );
+		}
 
 		$this->redirect_with_message( ! empty( $_POST['remove_access_token'] ) ? 'token_removed' : 'saved' );
 	}
@@ -85,6 +96,7 @@ final class Settings_Page {
 		$logs_enabled             = ! empty( $settings['logs_enabled'] );
 		$delete_data_on_uninstall = ! empty( $settings['delete_data_on_uninstall'] );
 		$message                  = isset( $_GET['ghlcs_message'] ) ? sanitize_key( wp_unslash( $_GET['ghlcs_message'] ) ) : '';
+		$connection_test          = get_option( 'ghlcs_last_connection_test', array() );
 
 		?>
 		<div class="wrap ghlcs-admin">
@@ -94,6 +106,10 @@ final class Settings_Page {
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'ghl-contact-sync' ); ?></p></div>
 			<?php elseif ( 'token_removed' === $message ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Access token removed.', 'ghl-contact-sync' ); ?></p></div>
+			<?php elseif ( 'test_success' === $message ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Connected successfully.', 'ghl-contact-sync' ); ?></p></div>
+			<?php elseif ( 'test_failed' === $message ) : ?>
+				<div class="notice notice-error is-dismissible"><p><?php esc_html_e( 'Connection test failed.', 'ghl-contact-sync' ); ?></p></div>
 			<?php elseif ( 'token_error' === $message ) : ?>
 				<div class="notice notice-error"><p><?php esc_html_e( 'Access token could not be encrypted on this server. Please make sure the PHP OpenSSL extension is enabled.', 'ghl-contact-sync' ); ?></p></div>
 			<?php endif; ?>
@@ -147,16 +163,108 @@ final class Settings_Page {
 					</table>
 				</div>
 
+				<p class="submit ghlcs-submit-actions">
+					<button type="submit" class="button button-primary"><?php esc_html_e( 'Save Changes', 'ghl-contact-sync' ); ?></button>
+					<button type="submit" name="test_connection" value="1" class="button button-secondary"><?php esc_html_e( 'Test Connection', 'ghl-contact-sync' ); ?></button>
+				</p>
+
+				<?php $this->render_connection_result( $connection_test ); ?>
+
+				<div class="ghlcs-panel ghlcs-help-panel">
+					<h2><?php esc_html_e( 'How to Find Your GHL Location ID', 'ghl-contact-sync' ); ?></h2>
+					<p><?php esc_html_e( 'Each GoHighLevel Sub-Account has a unique Location ID. Use the Location ID for the same Sub-Account used to create your Access Token.', 'ghl-contact-sync' ); ?></p>
+					<ol>
+						<li><?php esc_html_e( 'Log in to your GoHighLevel account.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Open the Sub-Account (Location) that you want to connect to this website.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Go to Settings -> Business Profile.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Find the Location ID in the Business Information section.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Copy the Location ID and paste it into the Location ID field above.', 'ghl-contact-sync' ); ?></li>
+					</ol>
+					<p><?php esc_html_e( 'A Location ID usually looks similar to:', 'ghl-contact-sync' ); ?></p>
+					<p><code>ve9EPM428h8vSh1RW1KT</code></p>
+					<p><strong><?php esc_html_e( 'Important:', 'ghl-contact-sync' ); ?></strong> <?php esc_html_e( 'The Location ID and Access Token must belong to the same GoHighLevel Sub-Account.', 'ghl-contact-sync' ); ?></p>
+				</div>
+
+				<div class="ghlcs-panel ghlcs-help-panel">
+					<h2><?php esc_html_e( 'How to Get Your GHL Access Token', 'ghl-contact-sync' ); ?></h2>
+					<p><?php esc_html_e( 'Follow these steps to connect this website to your GoHighLevel account:', 'ghl-contact-sync' ); ?></p>
+					<ol>
+						<li><?php esc_html_e( 'Log in to your GoHighLevel account.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Open the Sub-Account (Location) that you want to connect to this website.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Go to Settings -> Private Integrations.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Click Create New Private Integration.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Enter a name for the integration, for example: WordPress - GHL Contact Sync.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Select permissions: Contacts - View Contacts, Contacts - Edit Contacts, Locations - View Locations.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Create the Private Integration.', 'ghl-contact-sync' ); ?></li>
+						<li><?php esc_html_e( 'Copy the generated Access Token and paste it into the Access Token field above.', 'ghl-contact-sync' ); ?></li>
+					</ol>
+					<p><strong><?php esc_html_e( 'Important:', 'ghl-contact-sync' ); ?></strong> <?php esc_html_e( 'Keep your Access Token secure. Do not share it publicly or expose it in frontend code.', 'ghl-contact-sync' ); ?></p>
+				</div>
+
 				<div class="ghlcs-panel">
 					<h2><?php esc_html_e( 'Data & Logs', 'ghl-contact-sync' ); ?></h2>
 					<p><label><input type="checkbox" name="logs_enabled" value="1" <?php checked( $logs_enabled ); ?>> <?php esc_html_e( 'Enable plugin logs', 'ghl-contact-sync' ); ?></label></p>
 					<p><label><input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked( $delete_data_on_uninstall ); ?>> <?php esc_html_e( 'Delete plugin data on uninstall', 'ghl-contact-sync' ); ?></label></p>
 				</div>
 
-				<?php submit_button( __( 'Save Changes', 'ghl-contact-sync' ) ); ?>
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Render the most recent connection test result.
+	 *
+	 * @param array $result Connection test result.
+	 * @return void
+	 */
+	private function render_connection_result( $result ) {
+		if ( empty( $result ) || ! is_array( $result ) ) {
+			return;
+		}
+
+		$connected           = ! empty( $result['connected'] );
+		$contacts_accessible = ! empty( $result['contacts_accessible'] );
+		$checked_at          = ! empty( $result['checked_at'] ) ? (int) $result['checked_at'] : current_time( 'timestamp' );
+		$status_label        = $connected && $contacts_accessible ? __( 'Connected', 'ghl-contact-sync' ) : __( 'Connection Failed', 'ghl-contact-sync' );
+		?>
+		<div class="ghlcs-connection-result <?php echo esc_attr( $connected && $contacts_accessible ? 'is-success' : 'is-failed' ); ?>">
+			<h3><?php esc_html_e( 'Connection Status', 'ghl-contact-sync' ); ?></h3>
+			<div class="ghlcs-result-status"><?php echo esc_html( '. ' . $status_label ); ?></div>
+			<dl>
+				<dt><?php esc_html_e( 'Location', 'ghl-contact-sync' ); ?></dt>
+				<dd><?php echo esc_html( $result['location_name'] ?? __( 'Unable to verify', 'ghl-contact-sync' ) ); ?></dd>
+
+				<dt><?php esc_html_e( 'Location ID', 'ghl-contact-sync' ); ?></dt>
+				<dd><?php echo esc_html( $this->mask_location_id( $result['location_id'] ?? '' ) ); ?></dd>
+
+				<dt><?php esc_html_e( 'Contacts', 'ghl-contact-sync' ); ?></dt>
+				<dd><?php echo esc_html( $contacts_accessible ? 'Accessible' : 'Not accessible' ); ?></dd>
+
+				<?php if ( ! empty( $result['error'] ) ) : ?>
+					<dt><?php esc_html_e( 'Error', 'ghl-contact-sync' ); ?></dt>
+					<dd><?php echo esc_html( $result['error'] ); ?></dd>
+				<?php endif; ?>
+
+				<dt><?php esc_html_e( 'Last checked', 'ghl-contact-sync' ); ?></dt>
+				<dd><?php echo esc_html( date_i18n( 'F j, Y \a\t g:i A', $checked_at ) ); ?></dd>
+			</dl>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Mask Location ID in the test result.
+	 *
+	 * @param string $location_id Location ID.
+	 * @return string
+	 */
+	private function mask_location_id( $location_id ) {
+		if ( '' === $location_id ) {
+			return '****************';
+		}
+
+		return str_repeat( 'x', min( 16, strlen( $location_id ) ) );
 	}
 
 	/**

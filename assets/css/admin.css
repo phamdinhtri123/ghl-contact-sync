@@ -30,3 +30,55 @@
 	margin: 8px 0 6px;
 	font-weight: 600;
 }
+.ghlcs-submit-actions {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.ghlcs-help-panel ol {
+	margin-left: 22px;
+}
+
+.ghlcs-help-panel code {
+	padding: 4px 8px;
+	background: #f0f0f1;
+	border-radius: 3px;
+}
+
+.ghlcs-connection-result {
+	max-width: 720px;
+	margin: 16px 0;
+	padding: 18px 20px;
+	color: #fff;
+	background: #1f1f1f;
+	border-radius: 8px;
+	font-family: Consolas, Monaco, monospace;
+}
+
+.ghlcs-connection-result h3 {
+	display: inline-block;
+	margin: 0 0 18px;
+	padding-bottom: 10px;
+	color: #fff;
+	border-bottom: 1px solid #fff;
+	font-size: 13px;
+}
+
+.ghlcs-result-status {
+	margin-bottom: 22px;
+	font-weight: 600;
+}
+
+.ghlcs-connection-result dl {
+	margin: 0;
+}
+
+.ghlcs-connection-result dt {
+	margin-top: 18px;
+	font-weight: 700;
+}
+
+.ghlcs-connection-result dd {
+	margin: 6px 0 0;
+}
