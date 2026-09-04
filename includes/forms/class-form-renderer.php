@@ -85,7 +85,7 @@ final class Form_Renderer {
 
 		ob_start();
 		?>
-		<form class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" method="post" data-form-id="<?php echo esc_attr( $form_id ); ?>">
+		<form class="<?php echo esc_attr( implode( ' ', $classes ) ); ?>" action="" data-form-id="<?php echo esc_attr( $form_id ); ?>">
 			<input type="hidden" name="ghlcs_form_id" value="<?php echo esc_attr( $form_id ); ?>">
 			<?php wp_nonce_field( 'ghlcs_submit_form_' . $form_id, 'ghlcs_nonce' ); ?>
 			<div class="ghlcs-fields">
@@ -93,7 +93,7 @@ final class Form_Renderer {
 					<?php $this->render_field( $field ); ?>
 				<?php endforeach; ?>
 			</div>
-			<button type="submit" class="ghlcs-submit"><?php echo esc_html( $form['submit_text'] ); ?></button>
+			<button type="button" class="ghlcs-submit"><?php echo esc_html( $form['submit_text'] ); ?></button>
 			<div class="ghlcs-response" role="status" aria-live="polite"></div>
 		</form>
 		<?php
@@ -120,9 +120,9 @@ final class Form_Renderer {
 				<label for="<?php echo esc_attr( $field_id ); ?>"><?php echo esc_html( $label ); ?><?php echo $required ? ' *' : ''; ?></label>
 			<?php endif; ?>
 			<?php if ( 'textarea' === $type ) : ?>
-				<textarea id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( $name ); ?>" placeholder="<?php echo esc_attr( $field['placeholder'] ?? '' ); ?>" <?php required( $required ); ?>></textarea>
+				<textarea id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( $name ); ?>" placeholder="<?php echo esc_attr( $field['placeholder'] ?? '' ); ?>" <?php echo $required ? ' required' : ''; ?>></textarea>
 			<?php else : ?>
-				<input type="<?php echo esc_attr( $input_type ); ?>" id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( $name ); ?>" placeholder="<?php echo esc_attr( $field['placeholder'] ?? '' ); ?>" <?php required( $required ); ?>>
+				<input type="<?php echo esc_attr( $input_type ); ?>" id="<?php echo esc_attr( $field_id ); ?>" name="<?php echo esc_attr( $name ); ?>" placeholder="<?php echo esc_attr( $field['placeholder'] ?? '' ); ?>" <?php echo $required ? ' required' : ''; ?>>
 			<?php endif; ?>
 		</div>
 		<?php

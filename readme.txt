@@ -4,7 +4,7 @@ Tags: forms, gohighlevel, crm, contacts, leads
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 0.1.8
+Stable tag: 0.1.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -15,6 +15,12 @@ Create reusable frontend forms, store submissions locally, and sync contacts to 
 GHL Contact Sync lets WordPress administrators manage reusable forms and prepare contacts for GoHighLevel synchronization.
 
 == Changelog ==
+
+= 0.1.10 =
+* Fixed a shortcode renderer fatal error on WordPress installs where the required() helper is unavailable.
+
+= 0.1.9 =
+* Made shortcode rendering safer inside popups by preventing placeholder forms from submitting before frontend AJAX handling is implemented.
 
 = 0.1.8 =
 * Added frontend shortcode rendering for [ghl_form] with basic responsive form styles.
@@ -42,4 +48,3 @@ GHL Contact Sync lets WordPress administrators manage reusable forms and prepare
 
 = 0.1.0 =
 * Initial Phase 1 architecture, activation schema, admin menu, and update-checker bootstrap.
-
