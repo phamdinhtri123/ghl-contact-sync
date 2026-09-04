@@ -71,6 +71,8 @@ final class Admin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 
+		$this->forms_page->hooks();
+		$this->form_editor->hooks();
 		$this->settings_page->hooks();
 	}
 
@@ -155,5 +157,3 @@ final class Admin {
 		);
 	}
 }
-
-

@@ -127,3 +127,59 @@
 	background: linear-gradient(45deg, transparent 44%, #ff6b6d 44%, #ff6b6d 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, #ff6b6d 44%, #ff6b6d 56%, transparent 56%);
 	transform: none;
 }
+.ghlcs-forms-table code,
+.ghlcs-field-preview span {
+	font-size: 12px;
+}
+
+.ghlcs-row-actions a {
+	display: inline-block;
+	margin-right: 8px;
+}
+
+.ghlcs-status-pill {
+	display: inline-flex;
+	align-items: center;
+	padding: 2px 8px;
+	border-radius: 999px;
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.ghlcs-status-pill.is-active {
+	color: #0a5f28;
+	background: #dff7e8;
+}
+
+.ghlcs-status-pill.is-inactive {
+	color: #7a4b00;
+	background: #fff2cc;
+}
+
+.ghlcs-field-preview {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+	gap: 10px;
+	max-width: 900px;
+	margin: 12px 0 0;
+}
+
+.ghlcs-field-preview li {
+	margin: 0;
+	padding: 10px 12px;
+	background: #f6f7f7;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.ghlcs-field-preview strong,
+.ghlcs-field-preview span,
+.ghlcs-field-preview em {
+	display: block;
+}
+
+.ghlcs-field-preview em {
+	margin-top: 4px;
+	color: #646970;
+	font-style: normal;
+}

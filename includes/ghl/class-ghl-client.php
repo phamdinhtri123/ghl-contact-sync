@@ -20,6 +20,7 @@ final class GHL_Client {
 
 	const BASE_URL = 'https://services.leadconnectorhq.com/';
 	const API_VERSION = '2021-07-28';
+	const LOCATION_API_VERSION = 'v3';
 
 	/**
 	 * Plugin settings.
@@ -89,7 +90,7 @@ final class GHL_Client {
 		$result['connected']           = true;
 		$result['contacts_accessible'] = true;
 
-		$location_response = $this->request( 'locations/' . rawurlencode( $location_id ), $token );
+		$location_response = $this->request( 'locations/' . rawurlencode( $location_id ), $token, self::LOCATION_API_VERSION );
 
 		if ( is_array( $location_response ) && ! empty( $location_response['success'] ) ) {
 			$result['location_name'] = $this->extract_location_name( $location_response['body'] );
@@ -139,7 +140,7 @@ final class GHL_Client {
 	 * @param string $token Access token.
 	 * @return array|\WP_Error
 	 */
-	private function request( $path, $token ) {
+	private function request( $path, $token, $version = self::API_VERSION ) {
 		$response = wp_remote_get(
 			trailingslashit( self::BASE_URL ) . ltrim( $path, '/' ),
 			array(
@@ -147,7 +148,7 @@ final class GHL_Client {
 				'headers' => array(
 					'Authorization' => 'Bearer ' . $token,
 					'Accept'        => 'application/json',
-					'Version'       => self::API_VERSION,
+					'Version'       => $version,
 				),
 			)
 		);
@@ -185,6 +186,10 @@ final class GHL_Client {
 	private function extract_location_name( array $body ) {
 		if ( ! empty( $body['location']['name'] ) ) {
 			return sanitize_text_field( $body['location']['name'] );
+		}
+
+		if ( ! empty( $body['location']['business']['name'] ) ) {
+			return sanitize_text_field( $body['location']['business']['name'] );
 		}
 
 		if ( ! empty( $body['name'] ) ) {
