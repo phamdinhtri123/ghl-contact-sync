@@ -120,8 +120,6 @@ final class Activator {
 				'access_token_encrypted'   => '',
 				'logs_enabled'             => 1,
 				'delete_data_on_uninstall' => 0,
-				'update_repository_url'    => '',
-				'update_branch'            => 'main',
 			),
 			'',
 			false

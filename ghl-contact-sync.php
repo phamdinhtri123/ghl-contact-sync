@@ -3,7 +3,7 @@
  * Plugin Name: GHL Contact Sync
  * Plugin URI: https://example.com/ghl-contact-sync
  * Description: Build reusable frontend forms, store submissions locally, and sync contacts to GoHighLevel.
- * Version: 0.1.2
+ * Version: 0.1.3
  * Requires at least: 6.0
  * Requires PHP: 7.4
  * Author: SeaMKT
@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'GHLCS_VERSION', '0.1.2' );
+define( 'GHLCS_VERSION', '0.1.3' );
 define( 'GHLCS_DB_VERSION', '0.1.0' );
 define( 'GHLCS_PLUGIN_FILE', __FILE__ );
 define( 'GHLCS_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

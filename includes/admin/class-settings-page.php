@@ -57,8 +57,6 @@ final class Settings_Page {
 
 		$settings['logs_enabled']             = empty( $_POST['logs_enabled'] ) ? 0 : 1;
 		$settings['delete_data_on_uninstall'] = empty( $_POST['delete_data_on_uninstall'] ) ? 0 : 1;
-		$settings['update_repository_url']    = isset( $_POST['update_repository_url'] ) ? esc_url_raw( wp_unslash( $_POST['update_repository_url'] ) ) : '';
-		$settings['update_branch']            = isset( $_POST['update_branch'] ) ? sanitize_key( wp_unslash( $_POST['update_branch'] ) ) : 'main';
 
 		update_option( 'ghlcs_settings', $settings, false );
 
@@ -80,8 +78,6 @@ final class Settings_Page {
 		$token_from_constant      = defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' );
 		$location_id              = $location_from_constant ? GHL_CONTACT_SYNC_LOCATION_ID : ( $settings['location_id'] ?? '' );
 		$has_token                = $token_from_constant || ! empty( $settings['access_token_encrypted'] );
-		$update_repository_url    = $settings['update_repository_url'] ?? '';
-		$update_branch            = $settings['update_branch'] ?? 'main';
 		$logs_enabled             = ! empty( $settings['logs_enabled'] );
 		$delete_data_on_uninstall = ! empty( $settings['delete_data_on_uninstall'] );
 		$message                  = isset( $_GET['ghlcs_message'] ) ? sanitize_key( wp_unslash( $_GET['ghlcs_message'] ) ) : '';
@@ -124,25 +120,6 @@ final class Settings_Page {
 										<p class="description"><?php esc_html_e( 'Access Token is configured in wp-config.php and overrides this field.', 'ghl-contact-sync' ); ?></p>
 									<?php endif; ?>
 								</td>
-							</tr>
-						</tbody>
-					</table>
-				</div>
-
-				<div class="ghlcs-panel">
-					<h2><?php esc_html_e( 'Plugin Updates', 'ghl-contact-sync' ); ?></h2>
-					<table class="form-table" role="presentation">
-						<tbody>
-							<tr>
-								<th scope="row"><label for="ghlcs-update-repository-url"><?php esc_html_e( 'GitHub Repository URL', 'ghl-contact-sync' ); ?></label></th>
-								<td>
-									<input type="url" id="ghlcs-update-repository-url" name="update_repository_url" class="regular-text" value="<?php echo esc_attr( $update_repository_url ); ?>" placeholder="https://github.com/username/ghl-contact-sync/">
-									<p class="description"><?php esc_html_e( 'Used by plugin-update-checker to find future releases.', 'ghl-contact-sync' ); ?></p>
-								</td>
-							</tr>
-							<tr>
-								<th scope="row"><label for="ghlcs-update-branch"><?php esc_html_e( 'Branch', 'ghl-contact-sync' ); ?></label></th>
-								<td><input type="text" id="ghlcs-update-branch" name="update_branch" class="regular-text" value="<?php echo esc_attr( $update_branch ); ?>" placeholder="main"></td>
 							</tr>
 						</tbody>
 					</table>
