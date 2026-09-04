@@ -71,21 +71,6 @@ final class GHL_Client {
 			return $result;
 		}
 
-		$location_response = $this->request( 'locations/' . rawurlencode( $location_id ), $token );
-
-		if ( is_wp_error( $location_response ) ) {
-			$result['error'] = $location_response->get_error_message();
-			return $result;
-		}
-
-		if ( ! $location_response['success'] ) {
-			$result['error'] = $location_response['message'];
-			return $result;
-		}
-
-		$result['connected']     = true;
-		$result['location_name'] = $this->extract_location_name( $location_response['body'] );
-
 		$contacts_response = $this->request(
 			'contacts/?locationId=' . rawurlencode( $location_id ) . '&limit=1',
 			$token
@@ -96,13 +81,22 @@ final class GHL_Client {
 			return $result;
 		}
 
-		if ( $contacts_response['success'] ) {
-			$result['contacts_accessible'] = true;
-			$result['error']               = '';
+		if ( ! $contacts_response['success'] ) {
+			$result['error'] = $contacts_response['message'];
 			return $result;
 		}
 
-		$result['error'] = $contacts_response['message'];
+		$result['connected']           = true;
+		$result['contacts_accessible'] = true;
+
+		$location_response = $this->request( 'locations/' . rawurlencode( $location_id ), $token );
+
+		if ( is_array( $location_response ) && ! empty( $location_response['success'] ) ) {
+			$result['location_name'] = $this->extract_location_name( $location_response['body'] );
+		} else {
+			$result['location_name'] = __( 'Verified', 'ghl-contact-sync' );
+		}
+
 		return $result;
 	}
 
@@ -126,14 +120,16 @@ final class GHL_Client {
 	 */
 	private function get_access_token() {
 		if ( defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' ) ) {
-			return (string) GHL_CONTACT_SYNC_ACCESS_TOKEN;
+			return trim( (string) GHL_CONTACT_SYNC_ACCESS_TOKEN );
 		}
 
 		if ( empty( $this->settings['access_token_encrypted'] ) ) {
 			return '';
 		}
 
-		return Token_Encryption::decrypt_token( $this->settings['access_token_encrypted'] );
+		$token = Token_Encryption::decrypt_token( $this->settings['access_token_encrypted'] );
+
+		return is_wp_error( $token ) ? $token : trim( $token );
 	}
 
 	/**
@@ -211,11 +207,11 @@ final class GHL_Client {
 		}
 
 		if ( 403 === $code ) {
-			return __( 'Access Token does not have the required permission.', 'ghl-contact-sync' );
+			return __( 'Access Token does not have the required Contacts permission.', 'ghl-contact-sync' );
 		}
 
 		if ( 404 === $code ) {
-			return __( 'Location ID not found.', 'ghl-contact-sync' );
+			return __( 'Location ID not found or Contacts API endpoint is unavailable.', 'ghl-contact-sync' );
 		}
 
 		if ( 429 === $code ) {

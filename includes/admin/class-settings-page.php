@@ -51,7 +51,7 @@ final class Settings_Page {
 				$settings['access_token_encrypted'] = '';
 				delete_option( 'ghlcs_last_connection_test' );
 			} elseif ( ! empty( $_POST['access_token'] ) ) {
-				$encrypted_token = Token_Encryption::encrypt_token( sanitize_text_field( wp_unslash( $_POST['access_token'] ) ) );
+				$encrypted_token = Token_Encryption::encrypt_token( trim( wp_unslash( $_POST['access_token'] ) ) );
 
 				if ( is_wp_error( $encrypted_token ) ) {
 					$this->redirect_with_message( 'token_error' );
@@ -230,16 +230,16 @@ final class Settings_Page {
 		?>
 		<div class="ghlcs-connection-result <?php echo esc_attr( $connected && $contacts_accessible ? 'is-success' : 'is-failed' ); ?>">
 			<h3><?php esc_html_e( 'Connection Status', 'ghl-contact-sync' ); ?></h3>
-			<div class="ghlcs-result-status"><?php echo esc_html( '. ' . $status_label ); ?></div>
+			<div class="ghlcs-result-status"><span class="ghlcs-status-dot" aria-hidden="true"></span><?php echo esc_html( $status_label ); ?></div>
 			<dl>
 				<dt><?php esc_html_e( 'Location', 'ghl-contact-sync' ); ?></dt>
 				<dd><?php echo esc_html( $result['location_name'] ?? __( 'Unable to verify', 'ghl-contact-sync' ) ); ?></dd>
 
 				<dt><?php esc_html_e( 'Location ID', 'ghl-contact-sync' ); ?></dt>
-				<dd><?php echo esc_html( $this->mask_location_id( $result['location_id'] ?? '' ) ); ?></dd>
+				<dd><?php echo esc_html( $result['location_id'] ?? '' ); ?></dd>
 
 				<dt><?php esc_html_e( 'Contacts', 'ghl-contact-sync' ); ?></dt>
-				<dd><?php echo esc_html( $contacts_accessible ? 'Accessible' : 'Not accessible' ); ?></dd>
+				<dd><span class="ghlcs-access-icon" aria-hidden="true"></span><?php echo esc_html( $contacts_accessible ? 'Accessible' : 'Not accessible' ); ?></dd>
 
 				<?php if ( ! empty( $result['error'] ) ) : ?>
 					<dt><?php esc_html_e( 'Error', 'ghl-contact-sync' ); ?></dt>
@@ -254,26 +254,12 @@ final class Settings_Page {
 	}
 
 	/**
-	 * Mask Location ID in the test result.
-	 *
-	 * @param string $location_id Location ID.
-	 * @return string
-	 */
-	private function mask_location_id( $location_id ) {
-		if ( '' === $location_id ) {
-			return '****************';
-		}
-
-		return str_repeat( 'x', min( 16, strlen( $location_id ) ) );
-	}
-
-	/**
 	 * Return a masked token display value.
 	 *
 	 * @return string
 	 */
 	private function masked_token() {
-		return '****************....';
+		return '********************';
 	}
 
 	/**

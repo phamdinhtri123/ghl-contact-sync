@@ -14,6 +14,7 @@
 .ghlcs-admin .ghlcs-panel p {
 	max-width: 760px;
 }
+
 .ghlcs-token-row {
 	display: flex;
 	align-items: center;
@@ -30,10 +31,13 @@
 	margin: 8px 0 6px;
 	font-weight: 600;
 }
+
 .ghlcs-submit-actions {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	margin-top: 10px;
+	padding-bottom: 0;
 }
 
 .ghlcs-help-panel ol {
@@ -47,27 +51,46 @@
 }
 
 .ghlcs-connection-result {
-	max-width: 720px;
-	margin: 16px 0;
-	padding: 18px 20px;
-	color: #fff;
-	background: #1f1f1f;
-	border-radius: 8px;
-	font-family: Consolas, Monaco, monospace;
+	width: 300px;
+	max-width: 100%;
+	margin: 12px 0 18px;
+	padding: 18px 18px 20px;
+	color: #e7edf4;
+	background: linear-gradient(145deg, #071019 0%, #101820 100%);
+	border: 1px solid #243341;
+	border-radius: 6px;
+	box-shadow: 0 12px 30px rgba(0, 0, 0, 0.22);
+	font-size: 12px;
 }
 
 .ghlcs-connection-result h3 {
 	display: inline-block;
-	margin: 0 0 18px;
+	min-width: 176px;
+	margin: 0 0 22px;
 	padding-bottom: 10px;
-	color: #fff;
-	border-bottom: 1px solid #fff;
+	color: #e7edf4;
+	border-bottom: 1px solid #c3d0dc;
 	font-size: 13px;
+	font-weight: 600;
 }
 
 .ghlcs-result-status {
-	margin-bottom: 22px;
+	display: flex;
+	align-items: center;
+	gap: 7px;
+	margin-bottom: 20px;
 	font-weight: 600;
+}
+
+.ghlcs-status-dot {
+	width: 7px;
+	height: 7px;
+	background: #20e35a;
+	border-radius: 50%;
+}
+
+.ghlcs-connection-result.is-failed .ghlcs-status-dot {
+	background: #ff4d4f;
 }
 
 .ghlcs-connection-result dl {
@@ -76,9 +99,31 @@
 
 .ghlcs-connection-result dt {
 	margin-top: 18px;
+	color: #f3f7fb;
 	font-weight: 700;
 }
 
 .ghlcs-connection-result dd {
-	margin: 6px 0 0;
+	margin: 5px 0 0;
+	color: #f8fbff;
+	line-height: 1.45;
+}
+
+.ghlcs-access-icon::before {
+	content: "";
+	display: inline-block;
+	width: 5px;
+	height: 10px;
+	margin-right: 7px;
+	border: solid #20e35a;
+	border-width: 0 2px 2px 0;
+	transform: rotate(45deg);
+}
+
+.ghlcs-connection-result.is-failed .ghlcs-access-icon::before {
+	width: 8px;
+	height: 8px;
+	border: 0;
+	background: linear-gradient(45deg, transparent 44%, #ff6b6d 44%, #ff6b6d 56%, transparent 56%), linear-gradient(-45deg, transparent 44%, #ff6b6d 44%, #ff6b6d 56%, transparent 56%);
+	transform: none;
 }
