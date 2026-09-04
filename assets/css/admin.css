@@ -14,4 +14,19 @@
 .ghlcs-admin .ghlcs-panel p {
 	max-width: 760px;
 }
+.ghlcs-token-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 10px;
+}
 
+.ghlcs-token-row input[readonly] {
+	background: #f6f7f7;
+}
+
+.ghlcs-token-replace {
+	display: block;
+	margin: 8px 0 6px;
+	font-weight: 600;
+}

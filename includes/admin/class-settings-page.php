@@ -45,14 +45,18 @@ final class Settings_Page {
 			$settings['location_id'] = isset( $_POST['location_id'] ) ? sanitize_text_field( wp_unslash( $_POST['location_id'] ) ) : '';
 		}
 
-		if ( ! defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' ) && ! empty( $_POST['access_token'] ) ) {
-			$encrypted_token = Token_Encryption::encrypt_token( sanitize_text_field( wp_unslash( $_POST['access_token'] ) ) );
+		if ( ! defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' ) ) {
+			if ( ! empty( $_POST['remove_access_token'] ) ) {
+				$settings['access_token_encrypted'] = '';
+			} elseif ( ! empty( $_POST['access_token'] ) ) {
+				$encrypted_token = Token_Encryption::encrypt_token( sanitize_text_field( wp_unslash( $_POST['access_token'] ) ) );
 
-			if ( is_wp_error( $encrypted_token ) ) {
-				$this->redirect_with_message( 'token_error' );
+				if ( is_wp_error( $encrypted_token ) ) {
+					$this->redirect_with_message( 'token_error' );
+				}
+
+				$settings['access_token_encrypted'] = $encrypted_token;
 			}
-
-			$settings['access_token_encrypted'] = $encrypted_token;
 		}
 
 		$settings['logs_enabled']             = empty( $_POST['logs_enabled'] ) ? 0 : 1;
@@ -60,7 +64,7 @@ final class Settings_Page {
 
 		update_option( 'ghlcs_settings', $settings, false );
 
-		$this->redirect_with_message( 'saved' );
+		$this->redirect_with_message( ! empty( $_POST['remove_access_token'] ) ? 'token_removed' : 'saved' );
 	}
 
 	/**
@@ -88,6 +92,8 @@ final class Settings_Page {
 
 			<?php if ( 'saved' === $message ) : ?>
 				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Settings saved.', 'ghl-contact-sync' ); ?></p></div>
+			<?php elseif ( 'token_removed' === $message ) : ?>
+				<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Access token removed.', 'ghl-contact-sync' ); ?></p></div>
 			<?php elseif ( 'token_error' === $message ) : ?>
 				<div class="notice notice-error"><p><?php esc_html_e( 'Access token could not be encrypted on this server. Please make sure the PHP OpenSSL extension is enabled.', 'ghl-contact-sync' ); ?></p></div>
 			<?php endif; ?>
@@ -110,14 +116,30 @@ final class Settings_Page {
 								</td>
 							</tr>
 							<tr>
-								<th scope="row"><label for="ghlcs-access-token"><?php esc_html_e( 'Access Token', 'ghl-contact-sync' ); ?></label></th>
+								<th scope="row"><?php esc_html_e( 'Access Token', 'ghl-contact-sync' ); ?></th>
 								<td>
-									<input type="password" id="ghlcs-access-token" name="access_token" class="regular-text" value="" placeholder="<?php echo esc_attr( $has_token ? str_repeat( '*', 20 ) : __( 'Paste your GHL access token', 'ghl-contact-sync' ) ); ?>" autocomplete="new-password" <?php disabled( $token_from_constant ); ?>>
 									<?php if ( $has_token ) : ?>
-										<p class="description"><?php esc_html_e( 'Access token configured. Leave this field blank to keep the existing token.', 'ghl-contact-sync' ); ?></p>
+										<div class="ghlcs-token-row">
+											<input type="text" class="regular-text code" value="<?php echo esc_attr( $this->masked_token() ); ?>" readonly>
+											<?php if ( ! $token_from_constant ) : ?>
+												<button type="submit" name="remove_access_token" value="1" class="button button-secondary"><?php esc_html_e( 'Remove', 'ghl-contact-sync' ); ?></button>
+											<?php endif; ?>
+										</div>
+										<?php if ( $token_from_constant ) : ?>
+											<p class="description"><?php esc_html_e( 'Access Token is configured in wp-config.php and cannot be removed here.', 'ghl-contact-sync' ); ?></p>
+										<?php else : ?>
+											<p class="description"><?php esc_html_e( 'Stored token is masked for security.', 'ghl-contact-sync' ); ?></p>
+										<?php endif; ?>
 									<?php endif; ?>
-									<?php if ( $token_from_constant ) : ?>
-										<p class="description"><?php esc_html_e( 'Access Token is configured in wp-config.php and overrides this field.', 'ghl-contact-sync' ); ?></p>
+
+									<?php if ( ! $token_from_constant ) : ?>
+										<label class="ghlcs-token-replace" for="ghlcs-access-token">
+											<?php echo esc_html( $has_token ? __( 'Replace Access Token', 'ghl-contact-sync' ) : __( 'Access Token', 'ghl-contact-sync' ) ); ?>
+										</label>
+										<input type="password" id="ghlcs-access-token" name="access_token" class="regular-text" value="" placeholder="<?php esc_attr_e( 'Paste your GHL access token', 'ghl-contact-sync' ); ?>" autocomplete="new-password">
+										<?php if ( $has_token ) : ?>
+											<p class="description"><?php esc_html_e( 'Leave this field blank to keep the existing token.', 'ghl-contact-sync' ); ?></p>
+										<?php endif; ?>
 									<?php endif; ?>
 								</td>
 							</tr>
@@ -135,6 +157,15 @@ final class Settings_Page {
 			</form>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Return a masked token display value.
+	 *
+	 * @return string
+	 */
+	private function masked_token() {
+		return '****************....';
 	}
 
 	/**
