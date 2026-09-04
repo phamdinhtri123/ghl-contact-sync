@@ -1,0 +1,17 @@
+.ghlcs-admin .ghlcs-panel {
+	max-width: 960px;
+	margin: 16px 0;
+	padding: 18px 20px;
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 4px;
+}
+
+.ghlcs-admin .ghlcs-panel h2 {
+	margin-top: 0;
+}
+
+.ghlcs-admin .ghlcs-panel p {
+	max-width: 760px;
+}
+
