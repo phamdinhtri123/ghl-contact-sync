@@ -214,6 +214,7 @@ final class Form_Repository {
 		$config = is_array( $config ) ? $config : array();
 		$type   = ! empty( $config['type'] ) && 'contact' === $config['type'] ? 'contact' : 'newsletter';
 		$config = wp_parse_args( $config, $this->defaults( $type ) );
+		$config['theme'] = 'theme-1';
 
 		$config['id']         = (int) $post->ID;
 		$config['name']       = $post->post_title;
@@ -237,7 +238,7 @@ final class Form_Repository {
 		$clean['type']             = $type;
 		$clean['status']           = ! empty( $config['status'] ) && 'inactive' === $config['status'] ? 'inactive' : 'active';
 		$clean['layout']           = ! empty( $config['layout'] ) ? sanitize_key( $config['layout'] ) : $clean['layout'];
-		$clean['theme']            = ! empty( $config['theme'] ) && 'theme-2' === $config['theme'] ? 'theme-2' : 'theme-1';
+		$clean['theme']            = 'theme-1';
 		$clean['custom_class']     = ! empty( $config['custom_class'] ) ? sanitize_html_class( $config['custom_class'] ) : '';
 		$clean['submit_text']      = ! empty( $config['submit_text'] ) ? sanitize_text_field( $config['submit_text'] ) : $clean['submit_text'];
 		$clean['loading_text']     = ! empty( $config['loading_text'] ) ? sanitize_text_field( $config['loading_text'] ) : $clean['loading_text'];

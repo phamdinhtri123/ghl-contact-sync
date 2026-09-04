@@ -59,7 +59,7 @@ final class Form_Editor {
 			'type'             => isset( $_POST['form_type'] ) ? wp_unslash( $_POST['form_type'] ) : 'newsletter',
 			'status'           => isset( $_POST['form_status'] ) ? wp_unslash( $_POST['form_status'] ) : 'active',
 			'layout'           => isset( $_POST['layout'] ) ? wp_unslash( $_POST['layout'] ) : '',
-			'theme'            => isset( $_POST['theme'] ) ? wp_unslash( $_POST['theme'] ) : 'theme-1',
+			'theme'            => 'theme-1',
 			'custom_class'     => isset( $_POST['custom_class'] ) ? wp_unslash( $_POST['custom_class'] ) : '',
 			'submit_text'      => isset( $_POST['submit_text'] ) ? wp_unslash( $_POST['submit_text'] ) : '',
 			'loading_text'     => isset( $_POST['loading_text'] ) ? wp_unslash( $_POST['loading_text'] ) : '',
@@ -183,15 +183,6 @@ final class Form_Editor {
 										<option value="stacked" <?php selected( $form['layout'], 'stacked' ); ?>><?php esc_html_e( 'Stacked', 'ghl-contact-sync' ); ?></option>
 										<option value="grid" <?php selected( $form['layout'], 'grid' ); ?>><?php esc_html_e( 'Grid', 'ghl-contact-sync' ); ?></option>
 										<option value="column" <?php selected( $form['layout'], 'column' ); ?>><?php esc_html_e( 'Column', 'ghl-contact-sync' ); ?></option>
-									</select>
-								</td>
-							</tr>
-							<tr>
-								<th scope="row"><label for="ghlcs-theme"><?php esc_html_e( 'Theme', 'ghl-contact-sync' ); ?></label></th>
-								<td>
-									<select id="ghlcs-theme" name="theme">
-										<option value="theme-1" <?php selected( $form['theme'], 'theme-1' ); ?>><?php esc_html_e( 'Theme 1', 'ghl-contact-sync' ); ?></option>
-										<option value="theme-2" <?php selected( $form['theme'], 'theme-2' ); ?>><?php esc_html_e( 'Theme 2', 'ghl-contact-sync' ); ?></option>
 									</select>
 								</td>
 							</tr>

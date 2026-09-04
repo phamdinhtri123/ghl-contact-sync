@@ -102,6 +102,38 @@ final class GHL_Client {
 	}
 
 	/**
+	 * Create a contact in GoHighLevel.
+	 *
+	 * @param array $contact Contact payload.
+	 * @return array|\WP_Error
+	 */
+	public function create_contact( array $contact ) {
+		$location_id = $this->get_location_id();
+		$token       = $this->get_access_token();
+
+		if ( '' === $location_id ) {
+			return new \WP_Error( 'ghlcs_missing_location_id', __( 'Location ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		$payload = array_merge(
+			$contact,
+			array(
+				'locationId' => $location_id,
+			)
+		);
+
+		return $this->request( 'contacts/', $token, self::API_VERSION, 'POST', $payload );
+	}
+
+	/**
 	 * Get configured Location ID.
 	 *
 	 * @return string
@@ -140,17 +172,25 @@ final class GHL_Client {
 	 * @param string $token Access token.
 	 * @return array|\WP_Error
 	 */
-	private function request( $path, $token, $version = self::API_VERSION ) {
-		$response = wp_remote_get(
+	private function request( $path, $token, $version = self::API_VERSION, $method = 'GET', array $body = array() ) {
+		$args = array(
+			'timeout' => 20,
+			'headers' => array(
+				'Authorization' => 'Bearer ' . $token,
+				'Accept'        => 'application/json',
+				'Version'       => $version,
+			),
+		);
+
+		if ( 'POST' === strtoupper( $method ) ) {
+			$args['method']                  = 'POST';
+			$args['headers']['Content-Type'] = 'application/json';
+			$args['body']                    = wp_json_encode( $body );
+		}
+
+		$response = wp_remote_request(
 			trailingslashit( self::BASE_URL ) . ltrim( $path, '/' ),
-			array(
-				'timeout' => 20,
-				'headers' => array(
-					'Authorization' => 'Bearer ' . $token,
-					'Accept'        => 'application/json',
-					'Version'       => $version,
-				),
-			)
+			$args
 		);
 
 		if ( is_wp_error( $response ) ) {
