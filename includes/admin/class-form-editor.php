@@ -274,7 +274,7 @@ final class Form_Editor {
 					</table>
 				</div>
 
-				<div class="ghlcs-panel">
+				<div class="ghlcs-panel ghlcs-plugin-mode-panel">
 					<h2><?php esc_html_e( 'Submit Behavior', 'ghl-contact-sync' ); ?></h2>
 					<table class="form-table" role="presentation">
 						<tbody>
