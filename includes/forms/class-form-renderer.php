@@ -365,6 +365,7 @@ final class Form_Renderer {
 				'id'              => (int) $form['id'],
 				'container'       => $form['external_container'],
 				'submit'          => $form['external_submit'],
+				'isPopup'         => ! empty( $form['external_is_popup'] ),
 				'loadingText'     => $form['loading_text'],
 				'errorMessage'    => $form['error_message'],
 				'externalFields'  => array_map(

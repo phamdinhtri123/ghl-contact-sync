@@ -197,6 +197,7 @@ final class Form_Repository {
 			'fields'           => array(),
 			'external_container' => '',
 			'external_submit'  => '',
+			'external_is_popup' => 0,
 			'external_fields'  => array(),
 		);
 
@@ -277,6 +278,7 @@ final class Form_Repository {
 		$clean['fields']           = $this->defaults( $type )['fields'];
 		$clean['external_container'] = ! empty( $config['external_container'] ) ? sanitize_text_field( $config['external_container'] ) : '';
 		$clean['external_submit']  = ! empty( $config['external_submit'] ) ? sanitize_text_field( $config['external_submit'] ) : '';
+		$clean['external_is_popup'] = empty( $config['external_is_popup'] ) ? 0 : 1;
 		$clean['external_fields']  = $this->normalize_external_fields( $config['external_fields'] ?? array() );
 
 		return $clean;

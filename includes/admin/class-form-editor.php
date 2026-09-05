@@ -73,6 +73,7 @@ final class Form_Editor {
 			'source'           => isset( $_POST['source'] ) ? wp_unslash( $_POST['source'] ) : '',
 			'external_container' => isset( $_POST['external_container'] ) ? wp_unslash( $_POST['external_container'] ) : '',
 			'external_submit'  => isset( $_POST['external_submit'] ) ? wp_unslash( $_POST['external_submit'] ) : '',
+			'external_is_popup' => isset( $_POST['external_is_popup'] ) ? 1 : 0,
 			'external_fields'  => $this->posted_external_fields(),
 		);
 
@@ -248,6 +249,16 @@ final class Form_Editor {
 								<th scope="row"><label for="ghlcs-external-submit"><?php esc_html_e( 'Submit Button Selector', 'ghl-contact-sync' ); ?></label></th>
 								<td>
 									<input type="text" id="ghlcs-external-submit" name="external_submit" class="regular-text code" value="<?php echo esc_attr( $form['external_submit'] ); ?>" placeholder="button[type=&quot;submit&quot;]">
+								</td>
+							</tr>
+							<tr>
+								<th scope="row"><?php esc_html_e( 'Popup Form', 'ghl-contact-sync' ); ?></th>
+								<td>
+									<label>
+										<input type="checkbox" name="external_is_popup" value="1" <?php checked( ! empty( $form['external_is_popup'] ) ); ?>>
+										<?php esc_html_e( 'Close the matched container after a successful submit.', 'ghl-contact-sync' ); ?>
+									</label>
+									<p class="description"><?php esc_html_e( 'Use a popup root or overlay as the Container / Wrapper Selector so the full popup can be hidden.', 'ghl-contact-sync' ); ?></p>
 								</td>
 							</tr>
 						</tbody>
