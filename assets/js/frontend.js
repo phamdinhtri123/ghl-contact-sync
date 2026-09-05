@@ -117,25 +117,28 @@
 
 	function closeExternalPopup(wrapper, formConfig) {
 		var closeEvent;
+		var closeDelay = 2500;
 
 		if (!formConfig.isPopup) {
 			return;
 		}
 
-		try {
-			closeEvent = new CustomEvent('ghlcs:external-popup-close', {
-				bubbles: true,
-				detail: {
-					formId: formConfig.id,
-					container: formConfig.container
-				}
-			});
-			wrapper.dispatchEvent(closeEvent);
-		} catch (error) {}
+		window.setTimeout(function () {
+			try {
+				closeEvent = new CustomEvent('ghlcs:external-popup-close', {
+					bubbles: true,
+					detail: {
+						formId: formConfig.id,
+						container: formConfig.container
+					}
+				});
+				wrapper.dispatchEvent(closeEvent);
+			} catch (error) {}
 
-		wrapper.hidden = true;
-		wrapper.style.display = 'none';
-		wrapper.classList.remove('is-active', 'active', 'show', 'open');
+			wrapper.hidden = true;
+			wrapper.style.display = 'none';
+			wrapper.classList.remove('is-active', 'active', 'show', 'open');
+		}, closeDelay);
 	}
 
 	function appendTracking(formData) {
