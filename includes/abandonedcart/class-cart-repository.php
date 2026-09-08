@@ -63,7 +63,7 @@ final class Cart_Repository {
 
 		$row = $wpdb->get_row(
 			$wpdb->prepare(
-				"SELECT * FROM {$this->table_name()} WHERE session_key = %s AND status IN ('active','abandoned') ORDER BY id DESC LIMIT 1",
+				"SELECT * FROM {$this->table_name()} WHERE session_key = %s AND status IN ('active','abandoned','expired') ORDER BY id DESC LIMIT 1",
 				(string) $session_key
 			),
 			ARRAY_A
@@ -108,6 +108,10 @@ final class Cart_Repository {
 		$now      = current_time( 'mysql' );
 		$email    = ! empty( $identity['email'] ) && is_email( $identity['email'] ) ? sanitize_email( $identity['email'] ) : ( $existing['email'] ?? '' );
 		$status   = empty( $snapshot['item_count'] ) ? 'expired' : 'active';
+
+		if ( ! $existing && empty( $snapshot['item_count'] ) ) {
+			return null;
+		}
 
 		if ( $existing && 'abandoned' === $existing['status'] && ! empty( $snapshot['item_count'] ) ) {
 			$status = 'active';
