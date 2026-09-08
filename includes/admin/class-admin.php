@@ -7,6 +7,8 @@
 
 namespace GHLContactSync\Admin;
 
+use GHLContactSync\AbandonedCart\Admin_Page as Abandoned_Cart_Page;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -52,6 +54,13 @@ final class Admin {
 	private $logs_page;
 
 	/**
+	 * Abandoned cart page.
+	 *
+	 * @var Abandoned_Cart_Page
+	 */
+	private $abandoned_cart_page;
+
+	/**
 	 * Constructor.
 	 */
 	public function __construct() {
@@ -60,6 +69,7 @@ final class Admin {
 		$this->submissions_page = new Submissions_Page();
 		$this->settings_page    = new Settings_Page();
 		$this->logs_page        = new Logs_Page();
+		$this->abandoned_cart_page = new Abandoned_Cart_Page();
 	}
 
 	/**
@@ -74,6 +84,7 @@ final class Admin {
 		$this->forms_page->hooks();
 		$this->form_editor->hooks();
 		$this->settings_page->hooks();
+		$this->abandoned_cart_page->hooks();
 	}
 
 	/**
@@ -117,6 +128,15 @@ final class Admin {
 			'manage_options',
 			'ghl-contact-sync-submissions',
 			array( $this->submissions_page, 'render' )
+		);
+
+		add_submenu_page(
+			'ghl-contact-sync',
+			__( 'Abandoned Cart', 'ghl-contact-sync' ),
+			__( 'Abandoned Cart', 'ghl-contact-sync' ),
+			'manage_options',
+			'ghl-contact-sync-abandoned-cart',
+			array( $this->abandoned_cart_page, 'render' )
 		);
 
 		add_submenu_page(

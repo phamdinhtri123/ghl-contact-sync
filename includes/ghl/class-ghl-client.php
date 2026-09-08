@@ -134,6 +134,115 @@ final class GHL_Client {
 	}
 
 	/**
+	 * Upsert a contact using the current HighLevel Contacts API.
+	 *
+	 * @param array $contact Contact payload.
+	 * @return array|\WP_Error
+	 */
+	public function upsert_contact( array $contact ) {
+		$location_id = $this->get_location_id();
+		$token       = $this->get_access_token();
+
+		if ( '' === $location_id ) {
+			return new \WP_Error( 'ghlcs_missing_location_id', __( 'Location ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		unset( $contact['tags'] );
+
+		$payload = array_merge(
+			$contact,
+			array(
+				'locationId' => $location_id,
+			)
+		);
+
+		return $this->request( 'contacts/upsert', $token, self::API_VERSION, 'POST', $payload );
+	}
+
+	/**
+	 * Fetch contact custom fields for the configured location.
+	 *
+	 * @return array|\WP_Error
+	 */
+	public function get_contact_custom_fields() {
+		$location_id = $this->get_location_id();
+		$token       = $this->get_access_token();
+
+		if ( '' === $location_id ) {
+			return new \WP_Error( 'ghlcs_missing_location_id', __( 'Location ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		return $this->request( 'locations/' . rawurlencode( $location_id ) . '/customFields?model=contact', $token, self::API_VERSION );
+	}
+
+	/**
+	 * Add tags to one contact without replacing existing tags.
+	 *
+	 * @param string $contact_id GHL contact ID.
+	 * @param array  $tags Tags to add.
+	 * @return array|\WP_Error
+	 */
+	public function add_contact_tags( $contact_id, array $tags ) {
+		return $this->contact_tags_request( $contact_id, $tags, 'POST' );
+	}
+
+	/**
+	 * Remove tags from one contact without touching unrelated tags.
+	 *
+	 * @param string $contact_id GHL contact ID.
+	 * @param array  $tags Tags to remove.
+	 * @return array|\WP_Error
+	 */
+	public function remove_contact_tags( $contact_id, array $tags ) {
+		return $this->contact_tags_request( $contact_id, $tags, 'DELETE' );
+	}
+
+	/**
+	 * Send a contact tag request.
+	 *
+	 * @param string $contact_id GHL contact ID.
+	 * @param array  $tags Tags.
+	 * @param string $method HTTP method.
+	 * @return array|\WP_Error
+	 */
+	private function contact_tags_request( $contact_id, array $tags, $method ) {
+		$token = $this->get_access_token();
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		$contact_id = sanitize_text_field( $contact_id );
+		$tags       = array_values( array_filter( array_map( 'sanitize_text_field', $tags ) ) );
+
+		if ( '' === $contact_id || empty( $tags ) ) {
+			return new \WP_Error( 'ghlcs_invalid_tag_request', __( 'Contact ID and tag are required.', 'ghl-contact-sync' ) );
+		}
+
+		return $this->request( 'contacts/' . rawurlencode( $contact_id ) . '/tags', $token, self::API_VERSION, $method, array( 'tags' => $tags ) );
+	}
+
+	/**
 	 * Get configured Location ID.
 	 *
 	 * @return string
@@ -182,8 +291,8 @@ final class GHL_Client {
 			),
 		);
 
-		if ( 'POST' === strtoupper( $method ) ) {
-			$args['method']                  = 'POST';
+		if ( in_array( strtoupper( $method ), array( 'POST', 'PUT', 'PATCH', 'DELETE' ), true ) ) {
+			$args['method']                  = strtoupper( $method );
 			$args['headers']['Content-Type'] = 'application/json';
 			$args['body']                    = wp_json_encode( $body );
 		}

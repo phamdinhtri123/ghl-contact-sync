@@ -8,6 +8,7 @@
 namespace GHLContactSync;
 
 use GHLContactSync\Admin\Admin;
+use GHLContactSync\AbandonedCart\Module as Abandoned_Cart_Module;
 use GHLContactSync\Forms\Form_Renderer;
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -48,6 +49,13 @@ final class Plugin {
 	private $form_renderer;
 
 	/**
+	 * WooCommerce abandoned cart module.
+	 *
+	 * @var Abandoned_Cart_Module
+	 */
+	private $abandoned_cart;
+
+	/**
 	 * Get singleton instance.
 	 *
 	 * @return Plugin
@@ -67,6 +75,7 @@ final class Plugin {
 		$this->admin          = new Admin();
 		$this->update_checker = new Update_Checker();
 		$this->form_renderer  = new Form_Renderer();
+		$this->abandoned_cart = new Abandoned_Cart_Module();
 	}
 
 	/**
@@ -84,6 +93,7 @@ final class Plugin {
 		}
 
 		$this->form_renderer->hooks();
+		$this->abandoned_cart->hooks();
 		$this->update_checker->hooks();
 	}
 

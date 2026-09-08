@@ -19,6 +19,8 @@ global $wpdb;
 
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}ghl_contact_sync_submissions" );
 $wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}ghl_contact_sync_logs" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}ghl_contact_sync_carts" );
+$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}ghl_contact_sync_cart_sync_logs" );
 
 delete_option( 'ghlcs_settings' );
 delete_option( 'ghlcs_version' );
@@ -36,4 +38,3 @@ $forms = get_posts(
 foreach ( $forms as $form_id ) {
 	wp_delete_post( (int) $form_id, true );
 }
-
