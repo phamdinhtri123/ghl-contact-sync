@@ -106,7 +106,7 @@ final class Cart_Repository {
 
 		$existing = $this->get_by_session( $session_key );
 		$now      = current_time( 'mysql' );
-		$email    = ! empty( $identity['email'] ) && is_email( $identity['email'] ) ? sanitize_email( $identity['email'] ) : ( $existing['email'] ?? '' );
+		$email    = $this->resolve_email( $existing, $identity );
 		$status   = empty( $snapshot['item_count'] ) ? 'expired' : 'active';
 
 		if ( ! $existing && empty( $snapshot['item_count'] ) ) {
@@ -354,6 +354,27 @@ final class Cart_Repository {
 	}
 
 	/**
+	 * Delete empty/expired cart rows in a bounded batch.
+	 *
+	 * @param int $limit Batch limit.
+	 * @return int
+	 */
+	public function delete_empty_carts( $limit = 500 ) {
+		global $wpdb;
+
+		$limit = max( 1, min( 1000, (int) $limit ) );
+
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM {$this->table_name()} WHERE item_count = 0 OR status = 'expired' LIMIT %d",
+				$limit
+			)
+		);
+
+		return false === $deleted ? 0 : (int) $deleted;
+	}
+
+	/**
 	 * Decode row JSON.
 	 *
 	 * @param array $row Row.
@@ -366,5 +387,24 @@ final class Cart_Repository {
 		}
 
 		return $row;
+	}
+
+	/**
+	 * Resolve cart email without letting a logged-in admin overwrite checkout identity.
+	 *
+	 * @param array|null $existing Existing cart.
+	 * @param array      $identity New identity data.
+	 * @return string
+	 */
+	private function resolve_email( $existing, array $identity ) {
+		$new_email      = ! empty( $identity['email'] ) && is_email( $identity['email'] ) ? sanitize_email( $identity['email'] ) : '';
+		$existing_email = ! empty( $existing['email'] ) && is_email( $existing['email'] ) ? sanitize_email( $existing['email'] ) : '';
+		$source         = isset( $identity['email_source'] ) ? sanitize_key( $identity['email_source'] ) : 'account';
+
+		if ( 'checkout' === $source ) {
+			return $new_email;
+		}
+
+		return '' !== $existing_email ? $existing_email : $new_email;
 	}
 }

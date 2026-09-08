@@ -36,11 +36,12 @@ final class Abandonment_Service {
 	 * Mark one cart abandoned once for the current cycle.
 	 *
 	 * @param array $cart Cart row.
-	 * @return void
+	 * @param bool  $enqueue_sync Whether to enqueue GHL sync.
+	 * @return array|null
 	 */
-	public function mark_abandoned( array $cart ) {
+	public function mark_abandoned( array $cart, $enqueue_sync = true ) {
 		if ( 'active' !== $cart['status'] || empty( $cart['email'] ) || empty( $cart['item_count'] ) ) {
-			return;
+			return null;
 		}
 
 		$settings = Settings::get();
@@ -63,8 +64,14 @@ final class Abandonment_Service {
 
 		$this->repository->add_log( $cart['id'], 'info', 'cart_abandoned', __( 'Cart marked abandoned.', 'ghl-contact-sync' ) );
 
-		if ( ! empty( $settings['ghl_sync_enabled'] ) ) {
+		if ( $enqueue_sync && ! empty( $settings['ghl_sync_enabled'] ) ) {
 			Background_Jobs::enqueue_unique( 'ghlcs_ac_sync_abandoned', array( (int) $cart['id'], $cycle, $token ), 0 );
 		}
+
+		return array(
+			'cart_id' => (int) $cart['id'],
+			'cycle'   => $cycle,
+			'token'   => $token,
+		);
 	}
 }

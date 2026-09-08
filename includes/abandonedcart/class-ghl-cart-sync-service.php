@@ -72,6 +72,11 @@ final class GHL_Cart_Sync_Service {
 			}
 
 			$this->repository->add_log( $cart_id, 'info', 'tag_added', sprintf( 'Tag "%s" added.', sanitize_text_field( $tag ) ) );
+		} elseif ( '' === $tag ) {
+			$this->repository->add_log( $cart_id, 'warning', 'tag_skipped', __( 'Abandoned cart tag is empty.', 'ghl-contact-sync' ) );
+		} else {
+			$this->mark_failed( $cart_id, __( 'GHL contact ID was missing after contact upsert, so the abandoned cart tag was not added.', 'ghl-contact-sync' ), 'tag_skipped' );
+			return;
 		}
 
 		$this->repository->update(
@@ -223,8 +228,8 @@ final class GHL_Cart_Sync_Service {
 			}
 
 			$fields[] = array(
-				'id'    => sanitize_text_field( $mapping[ $key ] ),
-				'value' => sanitize_text_field( (string) $value ),
+				'id'         => sanitize_text_field( $mapping[ $key ] ),
+				'fieldValue' => sanitize_text_field( (string) $value ),
 			);
 		}
 

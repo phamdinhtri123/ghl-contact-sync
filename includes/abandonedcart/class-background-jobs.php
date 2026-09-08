@@ -22,6 +22,7 @@ final class Background_Jobs {
 	 * @return void
 	 */
 	public function hooks() {
+		add_filter( 'cron_schedules', array( $this, 'cron_schedules' ) );
 		add_action( 'init', array( $this, 'ensure_schedules' ) );
 		add_action( 'ghlcs_abandoned_cart_detect', array( $this, 'detect' ) );
 		add_action( 'ghlcs_abandoned_cart_cleanup', array( $this, 'cleanup' ) );
@@ -44,7 +45,7 @@ final class Background_Jobs {
 
 		if ( function_exists( 'as_schedule_recurring_action' ) ) {
 			if ( ! as_next_scheduled_action( 'ghlcs_abandoned_cart_detect' ) ) {
-				as_schedule_recurring_action( time() + 300, 300, 'ghlcs_abandoned_cart_detect', array(), 'ghl-contact-sync' );
+				as_schedule_recurring_action( time() + 60, 60, 'ghlcs_abandoned_cart_detect', array(), 'ghl-contact-sync' );
 			}
 			if ( ! as_next_scheduled_action( 'ghlcs_abandoned_cart_cleanup' ) ) {
 				as_schedule_recurring_action( time() + HOUR_IN_SECONDS, DAY_IN_SECONDS, 'ghlcs_abandoned_cart_cleanup', array(), 'ghl-contact-sync' );
@@ -52,13 +53,29 @@ final class Background_Jobs {
 			return;
 		}
 
-		if ( ! wp_next_scheduled( 'ghlcs_abandoned_cart_detect' ) ) {
-			wp_schedule_event( time() + 300, 'hourly', 'ghlcs_abandoned_cart_detect' );
+		if ( 'ghlcs_every_minute' !== wp_get_schedule( 'ghlcs_abandoned_cart_detect' ) ) {
+			wp_clear_scheduled_hook( 'ghlcs_abandoned_cart_detect' );
+			wp_schedule_event( time() + 60, 'ghlcs_every_minute', 'ghlcs_abandoned_cart_detect' );
 		}
 
 		if ( ! wp_next_scheduled( 'ghlcs_abandoned_cart_cleanup' ) ) {
 			wp_schedule_event( time() + HOUR_IN_SECONDS, 'daily', 'ghlcs_abandoned_cart_cleanup' );
 		}
+	}
+
+	/**
+	 * Add a minute interval for abandoned cart detection.
+	 *
+	 * @param array $schedules Cron schedules.
+	 * @return array
+	 */
+	public function cron_schedules( $schedules ) {
+		$schedules['ghlcs_every_minute'] = array(
+			'interval' => MINUTE_IN_SECONDS,
+			'display'  => __( 'Every minute', 'ghl-contact-sync' ),
+		);
+
+		return $schedules;
 	}
 
 	/**

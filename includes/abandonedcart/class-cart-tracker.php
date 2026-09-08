@@ -120,6 +120,7 @@ final class Cart_Tracker {
 			array(
 				'user_id'    => get_current_user_id(),
 				'email'      => $email,
+				'email_source' => 'checkout',
 				'first_name' => $first_name,
 				'last_name'  => $last_name,
 				'phone'      => $phone,

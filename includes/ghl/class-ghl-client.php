@@ -164,7 +164,7 @@ final class GHL_Client {
 			)
 		);
 
-		return $this->request( 'contacts/upsert', $token, self::API_VERSION, 'POST', $payload );
+		return $this->request( 'contacts/upsert', $token, self::LOCATION_API_VERSION, 'POST', $payload );
 	}
 
 	/**
@@ -277,7 +277,7 @@ final class GHL_Client {
 			return new \WP_Error( 'ghlcs_invalid_tag_request', __( 'Contact ID and tag are required.', 'ghl-contact-sync' ) );
 		}
 
-		return $this->request( 'contacts/' . rawurlencode( $contact_id ) . '/tags', $token, self::API_VERSION, $method, array( 'tags' => $tags ) );
+		return $this->request( 'contacts/' . rawurlencode( $contact_id ) . '/tags', $token, self::LOCATION_API_VERSION, $method, array( 'tags' => $tags ) );
 	}
 
 	/**

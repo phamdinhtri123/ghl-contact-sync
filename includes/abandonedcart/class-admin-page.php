@@ -55,6 +55,8 @@ final class Admin_Page {
 		add_action( 'admin_post_ghlcs_refresh_ac_fields', array( $this, 'refresh_fields' ) );
 		add_action( 'admin_post_ghlcs_create_ac_fields', array( $this, 'create_fields' ) );
 		add_action( 'admin_post_ghlcs_clear_ac_logs', array( $this, 'clear_logs' ) );
+		add_action( 'admin_post_ghlcs_delete_empty_ac_carts', array( $this, 'delete_empty_carts' ) );
+		add_action( 'admin_post_ghlcs_process_due_ac_carts', array( $this, 'process_due_carts' ) );
 	}
 
 	/**
@@ -275,6 +277,73 @@ final class Admin_Page {
 	}
 
 	/**
+	 * Delete empty/expired carts from admin.
+	 *
+	 * @return void
+	 */
+	public function delete_empty_carts() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to delete carts.', 'ghl-contact-sync' ) );
+		}
+
+		check_admin_referer( 'ghlcs_delete_empty_ac_carts' );
+
+		$deleted = $this->repository->delete_empty_carts();
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => 'ghl-contact-sync-abandoned-cart',
+					'tab'     => 'carts',
+					'message' => 'empty_deleted',
+					'deleted' => $deleted,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
+	 * Process due abandoned carts immediately for testing.
+	 *
+	 * @return void
+	 */
+	public function process_due_carts() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to process carts.', 'ghl-contact-sync' ) );
+		}
+
+		check_admin_referer( 'ghlcs_process_due_ac_carts' );
+
+		$settings = Settings::get();
+		$service  = new Abandonment_Service( $this->repository );
+		$sync     = new GHL_Cart_Sync_Service( $this->repository );
+		$count    = 0;
+
+		foreach ( $this->repository->due_for_abandonment( $settings['abandoned_after_minutes'], $settings['minimum_cart_total'], 50 ) as $cart ) {
+			$result = $service->mark_abandoned( $cart, false );
+			if ( $result && ! empty( $settings['ghl_sync_enabled'] ) ) {
+				$sync->sync_abandoned( $result['cart_id'], $result['cycle'], $result['token'] );
+			}
+			$count++;
+		}
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => 'ghl-contact-sync-abandoned-cart',
+					'tab'     => 'carts',
+					'message' => 'due_processed',
+					'count'   => $count,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Overview.
 	 *
 	 * @return void
@@ -321,6 +390,7 @@ final class Admin_Page {
 		$page   = isset( $_GET['paged'] ) ? max( 1, absint( $_GET['paged'] ) ) : 1;
 		$result = $this->repository->list_carts( array( 'status' => $status, 'search' => $search, 'page' => $page ) );
 		?>
+		<?php $this->render_carts_notice(); ?>
 		<form method="get" class="ghlcs-filter-bar">
 			<input type="hidden" name="page" value="ghl-contact-sync-abandoned-cart">
 			<input type="hidden" name="tab" value="carts">
@@ -332,6 +402,18 @@ final class Admin_Page {
 			</select>
 			<input type="search" name="s" value="<?php echo esc_attr( $search ); ?>" placeholder="<?php esc_attr_e( 'Email, cart ID, order ID', 'ghl-contact-sync' ); ?>">
 			<button class="button"><?php esc_html_e( 'Filter', 'ghl-contact-sync' ); ?></button>
+		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="ghlcs-inline-form">
+			<input type="hidden" name="action" value="ghlcs_delete_empty_ac_carts">
+			<?php wp_nonce_field( 'ghlcs_delete_empty_ac_carts' ); ?>
+			<button class="button button-secondary"><?php esc_html_e( 'Delete Empty/Expired Carts', 'ghl-contact-sync' ); ?></button>
+			<p class="description"><?php esc_html_e( 'Removes test rows with zero items or expired status. Orders and lead/form data are not touched.', 'ghl-contact-sync' ); ?></p>
+		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="ghlcs-inline-form">
+			<input type="hidden" name="action" value="ghlcs_process_due_ac_carts">
+			<?php wp_nonce_field( 'ghlcs_process_due_ac_carts' ); ?>
+			<button class="button button-secondary"><?php esc_html_e( 'Process Due Carts Now', 'ghl-contact-sync' ); ?></button>
+			<p class="description"><?php esc_html_e( 'For testing: immediately marks eligible inactive carts as abandoned, syncs cart fields, and adds the configured GHL tag.', 'ghl-contact-sync' ); ?></p>
 		</form>
 		<table class="widefat striped">
 			<thead><tr><th><?php esc_html_e( 'Cart ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Items', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Total', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Status', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Activity', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Abandoned At', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Order ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Sync', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Date', 'ghl-contact-sync' ); ?></th></tr></thead>
@@ -356,6 +438,28 @@ final class Admin_Page {
 				<?php endif; ?>
 			</tbody>
 		</table>
+		<?php
+	}
+
+	/**
+	 * Render cart list notices.
+	 *
+	 * @return void
+	 */
+	private function render_carts_notice() {
+		$message = isset( $_GET['message'] ) ? sanitize_key( wp_unslash( $_GET['message'] ) ) : '';
+
+		if ( 'empty_deleted' === $message ) {
+			$deleted = isset( $_GET['deleted'] ) ? absint( $_GET['deleted'] ) : 0;
+			$text    = sprintf( _n( '%d empty or expired cart deleted.', '%d empty or expired carts deleted.', $deleted, 'ghl-contact-sync' ), $deleted );
+		} elseif ( 'due_processed' === $message ) {
+			$count = isset( $_GET['count'] ) ? absint( $_GET['count'] ) : 0;
+			$text  = sprintf( _n( '%d due cart queued for abandonment processing.', '%d due carts queued for abandonment processing.', $count, 'ghl-contact-sync' ), $count );
+		} else {
+			return;
+		}
+		?>
+		<div class="notice notice-success is-dismissible"><p><?php echo esc_html( $text ); ?></p></div>
 		<?php
 	}
 
