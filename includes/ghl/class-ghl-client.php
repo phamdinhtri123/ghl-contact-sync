@@ -188,7 +188,45 @@ final class GHL_Client {
 			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
 		}
 
-		return $this->request( 'locations/' . rawurlencode( $location_id ) . '/customFields?model=contact', $token, self::API_VERSION );
+		return $this->request( 'locations/' . rawurlencode( $location_id ) . '/customFields?model=contact', $token, self::LOCATION_API_VERSION );
+	}
+
+	/**
+	 * Create a contact custom field for the configured location.
+	 *
+	 * @param string $name Field name.
+	 * @param string $data_type Field data type.
+	 * @return array|\WP_Error
+	 */
+	public function create_contact_custom_field( $name, $data_type = 'TEXT' ) {
+		$location_id = $this->get_location_id();
+		$token       = $this->get_access_token();
+
+		if ( '' === $location_id ) {
+			return new \WP_Error( 'ghlcs_missing_location_id', __( 'Location ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		return $this->request(
+			'locations/' . rawurlencode( $location_id ) . '/customFields',
+			$token,
+			self::LOCATION_API_VERSION,
+			'POST',
+			array(
+				'name'        => sanitize_text_field( $name ),
+				'dataType'    => sanitize_text_field( $data_type ),
+				'placeholder' => sanitize_text_field( $name ),
+				'position'    => 0,
+				'model'       => 'contact',
+			)
+		);
 	}
 
 	/**

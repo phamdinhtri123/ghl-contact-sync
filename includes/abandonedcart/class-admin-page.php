@@ -53,6 +53,7 @@ final class Admin_Page {
 	public function hooks() {
 		add_action( 'admin_post_ghlcs_save_abandoned_cart_settings', array( $this, 'save_settings' ) );
 		add_action( 'admin_post_ghlcs_refresh_ac_fields', array( $this, 'refresh_fields' ) );
+		add_action( 'admin_post_ghlcs_create_ac_fields', array( $this, 'create_fields' ) );
 		add_action( 'admin_post_ghlcs_clear_ac_logs', array( $this, 'clear_logs' ) );
 	}
 
@@ -149,6 +150,81 @@ final class Admin_Page {
 		}
 
 		wp_safe_redirect( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'settings', 'message' => is_wp_error( $result ) || empty( $result['success'] ) ? 'fields_failed' : 'fields_refreshed' ), admin_url( 'admin.php' ) ) );
+		exit;
+	}
+
+	/**
+	 * Create missing GHL custom fields and auto-map them.
+	 *
+	 * @return void
+	 */
+	public function create_fields() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to create fields.', 'ghl-contact-sync' ) );
+		}
+
+		check_admin_referer( 'ghlcs_create_ac_fields' );
+
+		$client  = new GHL_Client( get_option( 'ghlcs_settings', array() ) );
+		$current = $client->get_contact_custom_fields();
+
+		if ( is_wp_error( $current ) || empty( $current['success'] ) ) {
+			wp_safe_redirect( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'settings', 'message' => 'fields_failed' ), admin_url( 'admin.php' ) ) );
+			exit;
+		}
+
+		$fields  = $this->fields_from_body( $current['body'] );
+		$created = 0;
+		$failed  = 0;
+
+		foreach ( $this->recommended_fields() as $key => $field ) {
+			if ( $this->find_field_id_by_name( $fields, $field['name'] ) ) {
+				continue;
+			}
+
+			$result = $client->create_contact_custom_field( $field['name'], $field['type'] );
+
+			if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
+				$failed++;
+				continue;
+			}
+
+			$created_field = $result['body']['customField'] ?? array();
+			if ( ! empty( $created_field['id'] ) ) {
+				$fields[] = array(
+					'id'   => sanitize_text_field( $created_field['id'] ),
+					'name' => sanitize_text_field( $created_field['name'] ?? $field['name'] ),
+				);
+			}
+
+			$created++;
+		}
+
+		$refreshed = $client->get_contact_custom_fields();
+		if ( ! is_wp_error( $refreshed ) && ! empty( $refreshed['success'] ) ) {
+			update_option( 'ghlcs_ac_custom_fields', $refreshed['body'], false );
+			$fields = $this->fields_from_body( $refreshed['body'] );
+		}
+
+		$settings = Settings::get();
+		foreach ( $this->recommended_fields() as $key => $field ) {
+			$field_id = $this->find_field_id_by_name( $fields, $field['name'] );
+			if ( $field_id ) {
+				$settings['field_mapping'][ $key ] = $field_id;
+			}
+		}
+		Settings::save( $settings );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => 'ghl-contact-sync-abandoned-cart',
+					'tab'     => 'settings',
+					'message' => $failed ? 'fields_partial' : ( $created ? 'fields_created' : 'fields_already_exist' ),
+				),
+				admin_url( 'admin.php' )
+			)
+		);
 		exit;
 	}
 
@@ -339,6 +415,12 @@ final class Admin_Page {
 			<?php wp_nonce_field( 'ghlcs_refresh_ac_fields' ); ?>
 			<button class="button"><?php esc_html_e( 'Refresh GHL Fields', 'ghl-contact-sync' ); ?></button>
 		</form>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="ghlcs-inline-form">
+			<input type="hidden" name="action" value="ghlcs_create_ac_fields">
+			<?php wp_nonce_field( 'ghlcs_create_ac_fields' ); ?>
+			<button class="button button-secondary"><?php esc_html_e( 'Create Missing GHL Fields', 'ghl-contact-sync' ); ?></button>
+			<p class="description"><?php esc_html_e( 'Creates the recommended abandoned cart contact fields in GoHighLevel, refreshes the dropdowns, and maps them automatically.', 'ghl-contact-sync' ); ?></p>
+		</form>
 		<?php
 	}
 
@@ -369,17 +451,7 @@ final class Admin_Page {
 	 */
 	private function custom_fields() {
 		$body   = get_option( 'ghlcs_ac_custom_fields', array() );
-		$source = $body['customFields'] ?? ( $body['fields'] ?? array() );
-		$fields = array();
-
-		foreach ( is_array( $source ) ? $source : array() as $field ) {
-			if ( empty( $field['id'] ) ) {
-				continue;
-			}
-			$fields[] = array( 'id' => $field['id'], 'name' => $field['name'] ?? $field['fieldKey'] ?? $field['id'] );
-		}
-
-		return $fields;
+		return $this->fields_from_body( is_array( $body ) ? $body : array() );
 	}
 
 	/**
@@ -399,6 +471,68 @@ final class Admin_Page {
 			<?php endforeach; ?>
 		</select>
 		<?php
+	}
+
+	/**
+	 * Recommended GHL fields to create.
+	 *
+	 * @return array
+	 */
+	private function recommended_fields() {
+		return array(
+			'cart_id'       => array( 'name' => 'Abandoned Cart ID', 'type' => 'TEXT' ),
+			'cart_status'   => array( 'name' => 'Abandoned Cart Status', 'type' => 'TEXT' ),
+			'cart_total'    => array( 'name' => 'Abandoned Cart Total', 'type' => 'TEXT' ),
+			'cart_currency' => array( 'name' => 'Abandoned Cart Currency', 'type' => 'TEXT' ),
+			'item_count'    => array( 'name' => 'Abandoned Cart Item Count', 'type' => 'TEXT' ),
+			'products'      => array( 'name' => 'Abandoned Cart Products', 'type' => 'TEXT' ),
+			'recovery_url'  => array( 'name' => 'Abandoned Cart Recovery URL', 'type' => 'TEXT' ),
+			'last_activity' => array( 'name' => 'Abandoned Cart Last Activity', 'type' => 'TEXT' ),
+			'abandoned_at'  => array( 'name' => 'Abandoned Cart Abandoned At', 'type' => 'TEXT' ),
+			'order_id'      => array( 'name' => 'Abandoned Cart Order ID', 'type' => 'TEXT' ),
+		);
+	}
+
+	/**
+	 * Normalize fields from a GHL response body.
+	 *
+	 * @param array $body API body.
+	 * @return array
+	 */
+	private function fields_from_body( array $body ) {
+		$source = $body['customFields'] ?? ( $body['fields'] ?? array() );
+		$fields = array();
+
+		foreach ( is_array( $source ) ? $source : array() as $field ) {
+			if ( empty( $field['id'] ) ) {
+				continue;
+			}
+			$fields[] = array(
+				'id'   => sanitize_text_field( $field['id'] ),
+				'name' => sanitize_text_field( $field['name'] ?? $field['fieldKey'] ?? $field['id'] ),
+			);
+		}
+
+		return $fields;
+	}
+
+	/**
+	 * Find a GHL field ID by display name.
+	 *
+	 * @param array  $fields Fields.
+	 * @param string $name Name.
+	 * @return string
+	 */
+	private function find_field_id_by_name( array $fields, $name ) {
+		$target = strtolower( trim( (string) $name ) );
+
+		foreach ( $fields as $field ) {
+			if ( $target === strtolower( trim( (string) $field['name'] ) ) ) {
+				return sanitize_text_field( $field['id'] );
+			}
+		}
+
+		return '';
 	}
 
 	/**
