@@ -147,6 +147,17 @@ final class Admin_Page {
 		$result = ( new GHL_Client( get_option( 'ghlcs_settings', array() ) ) )->get_contact_custom_fields();
 		if ( ! is_wp_error( $result ) && ! empty( $result['success'] ) ) {
 			update_option( 'ghlcs_ac_custom_fields', $result['body'], false );
+			delete_option( 'ghlcs_ac_last_field_create_result' );
+		} else {
+			update_option(
+				'ghlcs_ac_last_field_create_result',
+				array(
+					'errors' => array(
+						is_wp_error( $result ) ? $result->get_error_message() : ( $result['message'] ?? __( 'Could not refresh GHL fields.', 'ghl-contact-sync' ) ),
+					),
+				),
+				false
+			);
 		}
 
 		wp_safe_redirect( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'settings', 'message' => is_wp_error( $result ) || empty( $result['success'] ) ? 'fields_failed' : 'fields_refreshed' ), admin_url( 'admin.php' ) ) );
@@ -176,6 +187,7 @@ final class Admin_Page {
 		$fields  = $this->fields_from_body( $current['body'] );
 		$created = 0;
 		$failed  = 0;
+		$errors  = array();
 
 		foreach ( $this->recommended_fields() as $key => $field ) {
 			if ( $this->find_field_id_by_name( $fields, $field['name'] ) ) {
@@ -186,6 +198,11 @@ final class Admin_Page {
 
 			if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
 				$failed++;
+				$errors[] = sprintf(
+					'%s: %s',
+					$field['name'],
+					is_wp_error( $result ) ? $result->get_error_message() : ( $result['message'] ?? __( 'GHL rejected the field create request.', 'ghl-contact-sync' ) )
+				);
 				continue;
 			}
 
@@ -199,6 +216,16 @@ final class Admin_Page {
 
 			$created++;
 		}
+
+		update_option(
+			'ghlcs_ac_last_field_create_result',
+			array(
+				'created' => $created,
+				'failed'  => $failed,
+				'errors'  => $errors,
+			),
+			false
+		);
 
 		$refreshed = $client->get_contact_custom_fields();
 		if ( ! is_wp_error( $refreshed ) && ! empty( $refreshed['success'] ) ) {
@@ -377,7 +404,7 @@ final class Admin_Page {
 		$fields   = $this->custom_fields();
 		$message  = isset( $_GET['message'] ) ? sanitize_key( wp_unslash( $_GET['message'] ) ) : '';
 		?>
-		<?php if ( $message ) : ?><div class="notice notice-success is-dismissible"><p><?php echo esc_html( str_replace( '_', ' ', ucfirst( $message ) ) ); ?></p></div><?php endif; ?>
+		<?php $this->render_settings_notice( $message ); ?>
 		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
 			<input type="hidden" name="action" value="ghlcs_save_abandoned_cart_settings">
 			<?php wp_nonce_field( 'ghlcs_save_abandoned_cart_settings' ); ?>
@@ -470,6 +497,41 @@ final class Admin_Page {
 				<option value="<?php echo esc_attr( $field['id'] ); ?>" <?php selected( $selected, $field['id'] ); ?>><?php echo esc_html( $field['name'] ); ?></option>
 			<?php endforeach; ?>
 		</select>
+		<?php
+	}
+
+	/**
+	 * Render settings action notices.
+	 *
+	 * @param string $message Message key.
+	 * @return void
+	 */
+	private function render_settings_notice( $message ) {
+		if ( '' === $message ) {
+			return;
+		}
+
+		$is_error = in_array( $message, array( 'fields_failed', 'fields_partial' ), true );
+		$result   = get_option( 'ghlcs_ac_last_field_create_result', array() );
+		$text     = array(
+			'saved'                => __( 'Settings saved.', 'ghl-contact-sync' ),
+			'fields_refreshed'     => __( 'GHL fields refreshed.', 'ghl-contact-sync' ),
+			'fields_created'       => __( 'Missing GHL fields created and mapped.', 'ghl-contact-sync' ),
+			'fields_already_exist' => __( 'Recommended GHL fields already exist and were mapped.', 'ghl-contact-sync' ),
+			'fields_partial'       => __( 'Some GHL fields could not be created.', 'ghl-contact-sync' ),
+			'fields_failed'        => __( 'Could not fetch or create GHL fields.', 'ghl-contact-sync' ),
+		);
+		?>
+		<div class="notice <?php echo esc_attr( $is_error ? 'notice-error' : 'notice-success' ); ?> is-dismissible">
+			<p><?php echo esc_html( $text[ $message ] ?? $message ); ?></p>
+			<?php if ( ! empty( $result['errors'] ) && is_array( $result['errors'] ) ) : ?>
+				<ul>
+					<?php foreach ( array_slice( $result['errors'], 0, 5 ) as $error ) : ?>
+						<li><?php echo esc_html( $error ); ?></li>
+					<?php endforeach; ?>
+				</ul>
+			<?php endif; ?>
+		</div>
 		<?php
 	}
 
