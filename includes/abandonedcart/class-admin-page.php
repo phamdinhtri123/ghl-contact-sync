@@ -111,7 +111,7 @@ final class Admin_Page {
 		Settings::save(
 			array(
 				'enabled'                  => empty( $_POST['enabled'] ) ? 0 : 1,
-				'abandoned_after_minutes'  => max( 5, absint( $_POST['abandoned_after_minutes'] ?? 60 ) ),
+				'abandoned_after_minutes'  => max( 1, absint( $_POST['abandoned_after_minutes'] ?? 60 ) ),
 				'track_guest_carts'        => empty( $_POST['track_guest_carts'] ) ? 0 : 1,
 				'track_logged_in_carts'    => empty( $_POST['track_logged_in_carts'] ) ? 0 : 1,
 				'minimum_cart_total'       => $this->decimal( wp_unslash( $_POST['minimum_cart_total'] ?? 0 ) ),
@@ -410,7 +410,7 @@ final class Admin_Page {
 			<?php wp_nonce_field( 'ghlcs_save_abandoned_cart_settings' ); ?>
 			<div class="ghlcs-panel"><h2><?php esc_html_e( 'General', 'ghl-contact-sync' ); ?></h2>
 				<p><label><input type="checkbox" name="enabled" value="1" <?php checked( $settings['enabled'] ); ?>> <?php esc_html_e( 'Enable Abandoned Cart Tracking', 'ghl-contact-sync' ); ?></label></p>
-				<p><label><?php esc_html_e( 'Abandoned After', 'ghl-contact-sync' ); ?> <input type="number" name="abandoned_after_minutes" min="5" value="<?php echo esc_attr( $settings['abandoned_after_minutes'] ); ?>"> <?php esc_html_e( 'minutes', 'ghl-contact-sync' ); ?></label></p>
+				<p><label><?php esc_html_e( 'Abandoned After', 'ghl-contact-sync' ); ?> <input type="number" name="abandoned_after_minutes" min="1" value="<?php echo esc_attr( $settings['abandoned_after_minutes'] ); ?>"> <?php esc_html_e( 'minutes', 'ghl-contact-sync' ); ?></label></p>
 				<p><label><input type="checkbox" name="track_guest_carts" value="1" <?php checked( $settings['track_guest_carts'] ); ?>> <?php esc_html_e( 'Track Guest Carts', 'ghl-contact-sync' ); ?></label></p>
 				<p><label><input type="checkbox" name="track_logged_in_carts" value="1" <?php checked( $settings['track_logged_in_carts'] ); ?>> <?php esc_html_e( 'Track Logged-In Carts', 'ghl-contact-sync' ); ?></label></p>
 				<p><label><?php esc_html_e( 'Minimum Cart Total', 'ghl-contact-sync' ); ?> <input type="number" step="0.01" name="minimum_cart_total" value="<?php echo esc_attr( $settings['minimum_cart_total'] ); ?>"></label></p>
