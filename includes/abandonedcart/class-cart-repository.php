@@ -107,6 +107,7 @@ final class Cart_Repository {
 		$existing = $this->get_by_session( $session_key );
 		$now      = current_time( 'mysql' );
 		$email    = $this->resolve_email( $existing, $identity );
+		$email_changed = $existing && ! empty( $existing['email'] ) && '' !== $email && strtolower( $email ) !== strtolower( $existing['email'] );
 		$status   = empty( $snapshot['item_count'] ) ? 'expired' : 'active';
 
 		if ( ! $existing && empty( $snapshot['item_count'] ) ) {
@@ -121,6 +122,7 @@ final class Cart_Repository {
 			'session_key'      => sanitize_text_field( $session_key ),
 			'user_id'          => ! empty( $identity['user_id'] ) ? (int) $identity['user_id'] : null,
 			'email'            => $email,
+			'ghl_contact_id'   => $email_changed ? '' : ( $existing['ghl_contact_id'] ?? '' ),
 			'first_name'       => isset( $identity['first_name'] ) ? sanitize_text_field( $identity['first_name'] ) : ( $existing['first_name'] ?? '' ),
 			'last_name'        => isset( $identity['last_name'] ) ? sanitize_text_field( $identity['last_name'] ) : ( $existing['last_name'] ?? '' ),
 			'phone'            => isset( $identity['phone'] ) ? sanitize_text_field( $identity['phone'] ) : ( $existing['phone'] ?? '' ),
@@ -139,7 +141,7 @@ final class Cart_Repository {
 				$this->table_name(),
 				$data,
 				array( 'id' => (int) $existing['id'] ),
-				array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%f', '%s', '%s', '%s', '%s' ),
+				array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%f', '%s', '%s', '%s', '%s' ),
 				array( '%d' )
 			);
 
@@ -152,7 +154,7 @@ final class Cart_Repository {
 		$inserted = $wpdb->insert(
 			$this->table_name(),
 			$data,
-			array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
+			array( '%s', '%d', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%f', '%f', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		return false === $inserted ? new \WP_Error( 'ghlcs_cart_insert_failed', __( 'Could not save cart.', 'ghl-contact-sync' ) ) : (int) $wpdb->insert_id;

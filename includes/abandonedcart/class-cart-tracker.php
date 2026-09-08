@@ -45,6 +45,9 @@ final class Cart_Tracker {
 		add_action( 'woocommerce_removed_coupon', array( $this, 'track_current_cart' ), 20 );
 		add_action( 'woocommerce_cart_emptied', array( $this, 'track_current_cart' ), 20 );
 		add_action( 'woocommerce_cart_updated', array( $this, 'track_current_cart' ), 20 );
+		add_action( 'woocommerce_checkout_update_order_review', array( $this, 'capture_classic_checkout_identity' ), 20 );
+		add_action( 'woocommerce_store_api_checkout_update_customer_from_request', array( $this, 'capture_store_api_identity' ), 20, 2 );
+		add_action( 'woocommerce_store_api_cart_update_customer_from_request', array( $this, 'capture_store_api_identity' ), 20, 2 );
 		add_action( 'wp_ajax_ghlcs_capture_checkout_identity', array( $this, 'capture_checkout_identity' ) );
 		add_action( 'wp_ajax_nopriv_ghlcs_capture_checkout_identity', array( $this, 'capture_checkout_identity' ) );
 		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_assets' ) );
@@ -136,6 +139,84 @@ final class Cart_Tracker {
 		}
 
 		wp_send_json_success( array( 'cart_id' => (int) $result ) );
+	}
+
+	/**
+	 * Capture Classic Checkout identity from WooCommerce order review AJAX.
+	 *
+	 * @param string $post_data Serialized checkout data.
+	 * @return void
+	 */
+	public function capture_classic_checkout_identity( $post_data ) {
+		$data = array();
+		parse_str( (string) $post_data, $data );
+
+		$this->capture_identity_values(
+			array(
+				'email'      => $data['billing_email'] ?? '',
+				'first_name' => $data['billing_first_name'] ?? '',
+				'last_name'  => $data['billing_last_name'] ?? '',
+				'phone'      => $data['billing_phone'] ?? '',
+			)
+		);
+	}
+
+	/**
+	 * Capture Checkout Blocks identity from Store API requests.
+	 *
+	 * @param \WC_Customer      $customer Woo customer.
+	 * @param \WP_REST_Request $request Request.
+	 * @return void
+	 */
+	public function capture_store_api_identity( $customer, $request ) {
+		$billing = is_object( $request ) ? $request->get_param( 'billing_address' ) : array();
+		$billing = is_array( $billing ) ? $billing : array();
+
+		$this->capture_identity_values(
+			array(
+				'email'      => $billing['email'] ?? ( is_object( $customer ) && method_exists( $customer, 'get_billing_email' ) ? $customer->get_billing_email() : '' ),
+				'first_name' => $billing['first_name'] ?? ( is_object( $customer ) && method_exists( $customer, 'get_billing_first_name' ) ? $customer->get_billing_first_name() : '' ),
+				'last_name'  => $billing['last_name'] ?? ( is_object( $customer ) && method_exists( $customer, 'get_billing_last_name' ) ? $customer->get_billing_last_name() : '' ),
+				'phone'      => $billing['phone'] ?? ( is_object( $customer ) && method_exists( $customer, 'get_billing_phone' ) ? $customer->get_billing_phone() : '' ),
+			)
+		);
+	}
+
+	/**
+	 * Capture checkout identity values as the authoritative cart contact.
+	 *
+	 * @param array $values Identity values.
+	 * @return int|\WP_Error|null
+	 */
+	private function capture_identity_values( array $values ) {
+		if ( ! $this->can_track() || ! function_exists( 'WC' ) || ! WC()->cart || ! WC()->session ) {
+			return null;
+		}
+
+		$email = isset( $values['email'] ) ? sanitize_email( wp_unslash( $values['email'] ) ) : '';
+
+		if ( ! is_email( $email ) ) {
+			return null;
+		}
+
+		$result = $this->repository->upsert_current(
+			$this->session_key(),
+			$this->snapshot(),
+			array(
+				'user_id'      => get_current_user_id(),
+				'email'        => $email,
+				'email_source' => 'checkout',
+				'first_name'   => isset( $values['first_name'] ) ? sanitize_text_field( wp_unslash( $values['first_name'] ) ) : '',
+				'last_name'    => isset( $values['last_name'] ) ? sanitize_text_field( wp_unslash( $values['last_name'] ) ) : '',
+				'phone'        => isset( $values['phone'] ) ? sanitize_text_field( wp_unslash( $values['phone'] ) ) : '',
+			)
+		);
+
+		if ( ! is_wp_error( $result ) && $result && ! empty( Settings::get()['ghl_sync_enabled'] ) ) {
+			Background_Jobs::enqueue_unique( 'ghlcs_ac_sync_status', array( (int) $result, 'active' ), 120 );
+		}
+
+		return $result;
 	}
 
 	/**

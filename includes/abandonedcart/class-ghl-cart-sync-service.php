@@ -71,7 +71,12 @@ final class GHL_Cart_Sync_Service {
 				return;
 			}
 
-			$this->repository->add_log( $cart_id, 'info', 'tag_added', sprintf( 'Tag "%s" added.', sanitize_text_field( $tag ) ) );
+			$this->repository->add_log(
+				$cart_id,
+				'info',
+				'tag_added',
+				sprintf( 'Tag "%1$s" added to GHL contact %2$s.', sanitize_text_field( $tag ), sanitize_text_field( $cart['ghl_contact_id'] ) )
+			);
 		} elseif ( '' === $tag ) {
 			$this->repository->add_log( $cart_id, 'warning', 'tag_skipped', __( 'Abandoned cart tag is empty.', 'ghl-contact-sync' ) );
 		} else {
