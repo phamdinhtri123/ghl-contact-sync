@@ -77,10 +77,12 @@ final class Recovery_Service {
 		}
 
 		$settings = Settings::get();
+		$already_recovered = $this->is_recovered_cart_in_current_session( $cart );
 		$this->bind_recovered_cart( $cart );
 
 		if ( 'replace' === $settings['recovery_cart_behavior'] ) {
 			WC()->cart->empty_cart();
+			$already_recovered = false;
 		}
 
 		$restored = 0;
@@ -96,8 +98,9 @@ final class Recovery_Service {
 				continue;
 			}
 
-			$variation = isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
-			$added     = WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $variation );
+			$added = $already_recovered
+				? $this->ensure_cart_item_quantity( $product_id, $variation_id, $quantity, $item )
+				: WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $this->item_variation( $item ) );
 
 			if ( $added ) {
 				$restored++;
@@ -178,6 +181,96 @@ final class Recovery_Service {
 				)
 			);
 		}
+	}
+
+	/**
+	 * Whether this session has already restored this cart.
+	 *
+	 * @param array $cart Cart row.
+	 * @return bool
+	 */
+	private function is_recovered_cart_in_current_session( array $cart ) {
+		if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+			return false;
+		}
+
+		return (int) WC()->session->get( 'ghlcs_recovered_cart_id' ) === (int) $cart['id'];
+	}
+
+	/**
+	 * Ensure a recovered item exists without doubling it on repeated link clicks.
+	 *
+	 * @param int   $product_id Product ID.
+	 * @param int   $variation_id Variation ID.
+	 * @param int   $quantity Desired quantity.
+	 * @param array $item Stored cart item.
+	 * @return bool
+	 */
+	private function ensure_cart_item_quantity( $product_id, $variation_id, $quantity, array $item ) {
+		$cart_item_key = $this->find_cart_item_key( $product_id, $variation_id, $this->item_variation( $item ) );
+
+		if ( $cart_item_key ) {
+			$current_quantity = isset( WC()->cart->cart_contents[ $cart_item_key ]['quantity'] ) ? (int) WC()->cart->cart_contents[ $cart_item_key ]['quantity'] : 0;
+			if ( $current_quantity < $quantity ) {
+				WC()->cart->set_quantity( $cart_item_key, $quantity, false );
+			}
+
+			return true;
+		}
+
+		return (bool) WC()->cart->add_to_cart( $product_id, $quantity, $variation_id, $this->item_variation( $item ) );
+	}
+
+	/**
+	 * Find a matching Woo cart item.
+	 *
+	 * @param int   $product_id Product ID.
+	 * @param int   $variation_id Variation ID.
+	 * @param array $variation Variation attributes.
+	 * @return string
+	 */
+	private function find_cart_item_key( $product_id, $variation_id, array $variation ) {
+		$target_variation = $this->normalize_variation( $variation );
+
+		foreach ( WC()->cart->get_cart() as $cart_item_key => $cart_item ) {
+			$current_product_id   = isset( $cart_item['product_id'] ) ? (int) $cart_item['product_id'] : 0;
+			$current_variation_id = isset( $cart_item['variation_id'] ) ? (int) $cart_item['variation_id'] : 0;
+			$current_variation    = isset( $cart_item['variation'] ) && is_array( $cart_item['variation'] ) ? $cart_item['variation'] : array();
+
+			if ( $current_product_id === $product_id && $current_variation_id === $variation_id && $this->normalize_variation( $current_variation ) === $target_variation ) {
+				return (string) $cart_item_key;
+			}
+		}
+
+		return '';
+	}
+
+	/**
+	 * Get stored variation attributes.
+	 *
+	 * @param array $item Stored cart item.
+	 * @return array
+	 */
+	private function item_variation( array $item ) {
+		return isset( $item['attributes'] ) && is_array( $item['attributes'] ) ? $item['attributes'] : array();
+	}
+
+	/**
+	 * Normalize variation attributes for comparison.
+	 *
+	 * @param array $variation Variation attributes.
+	 * @return array
+	 */
+	private function normalize_variation( array $variation ) {
+		$normalized = array();
+
+		foreach ( $variation as $key => $value ) {
+			$normalized[ sanitize_key( $key ) ] = sanitize_text_field( $value );
+		}
+
+		ksort( $normalized );
+
+		return $normalized;
 	}
 
 	/**
