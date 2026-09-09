@@ -56,6 +56,7 @@ final class Admin_Page {
 		add_action( 'admin_post_ghlcs_create_ac_fields', array( $this, 'create_fields' ) );
 		add_action( 'admin_post_ghlcs_clear_ac_logs', array( $this, 'clear_logs' ) );
 		add_action( 'admin_post_ghlcs_delete_empty_ac_carts', array( $this, 'delete_empty_carts' ) );
+		add_action( 'admin_post_ghlcs_delete_ac_carts', array( $this, 'delete_carts' ) );
 		add_action( 'admin_post_ghlcs_process_due_ac_carts', array( $this, 'process_due_carts' ) );
 	}
 
@@ -305,6 +306,35 @@ final class Admin_Page {
 	}
 
 	/**
+	 * Delete selected carts from admin.
+	 *
+	 * @return void
+	 */
+	public function delete_carts() {
+		if ( ! current_user_can( 'manage_options' ) ) {
+			wp_die( esc_html__( 'You do not have permission to delete carts.', 'ghl-contact-sync' ) );
+		}
+
+		check_admin_referer( 'ghlcs_delete_ac_carts' );
+
+		$ids     = isset( $_POST['cart_ids'] ) && is_array( $_POST['cart_ids'] ) ? array_map( 'absint', wp_unslash( $_POST['cart_ids'] ) ) : array();
+		$deleted = $this->repository->delete_many( $ids );
+
+		wp_safe_redirect(
+			add_query_arg(
+				array(
+					'page'    => 'ghl-contact-sync-abandoned-cart',
+					'tab'     => 'carts',
+					'message' => 'deleted',
+					'deleted' => $deleted,
+				),
+				admin_url( 'admin.php' )
+			)
+		);
+		exit;
+	}
+
+	/**
 	 * Process due abandoned carts immediately for testing.
 	 *
 	 * @return void
@@ -425,30 +455,37 @@ final class Admin_Page {
 			<button class="button button-secondary"><?php esc_html_e( 'Process Due Carts Now', 'ghl-contact-sync' ); ?></button>
 			<p class="description"><?php esc_html_e( 'For testing: immediately marks eligible inactive carts as abandoned, syncs cart fields, and adds the configured GHL tag.', 'ghl-contact-sync' ); ?></p>
 		</form>
-		<table class="widefat striped">
-			<thead><tr><th><?php esc_html_e( 'Cart ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Items', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Total', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Current Status', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Tag State', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Activity', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Abandoned', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Order ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Sync', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Created', 'ghl-contact-sync' ); ?></th></tr></thead>
-			<tbody>
-				<?php foreach ( $result['rows'] as $cart ) : ?>
-					<tr>
-						<td><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'carts', 'cart_id' => (int) $cart['id'] ), admin_url( 'admin.php' ) ) ); ?>"><?php echo esc_html( $cart['cart_uuid'] ); ?></a></td>
-						<td><?php echo esc_html( trim( $cart['first_name'] . ' ' . $cart['last_name'] ) ?: __( 'Guest', 'ghl-contact-sync' ) ); ?></td>
-						<td><?php echo esc_html( $cart['email'] ); ?></td>
-						<td><?php echo esc_html( $cart['item_count'] ); ?></td>
-						<td><?php echo wp_kses_post( function_exists( 'wc_price' ) ? wc_price( $cart['total'] ) : esc_html( $cart['total'] ) ); ?></td>
-						<td><?php echo esc_html( $this->status_label( $cart['status'] ) ); ?></td>
-						<td><?php echo esc_html( $this->tag_state_label( $cart ) ); ?></td>
-						<td><?php echo esc_html( $cart['last_activity_at'] ); ?></td>
-						<td><?php echo esc_html( $cart['abandoned_at'] ); ?></td>
-						<td><?php echo esc_html( $cart['order_id'] ); ?></td>
-						<td><?php echo esc_html( $cart['ghl_sync_status'] ); ?></td>
-						<td><?php echo esc_html( $cart['created_at'] ); ?></td>
-					</tr>
-				<?php endforeach; ?>
-				<?php if ( empty( $result['rows'] ) ) : ?>
-					<tr><td colspan="12"><?php esc_html_e( 'No carts found.', 'ghl-contact-sync' ); ?></td></tr>
-				<?php endif; ?>
-			</tbody>
-		</table>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+			<input type="hidden" name="action" value="ghlcs_delete_ac_carts">
+			<?php wp_nonce_field( 'ghlcs_delete_ac_carts' ); ?>
+			<p><button class="button button-secondary" onclick="return confirm('<?php echo esc_js( __( 'Delete selected carts and their sync logs?', 'ghl-contact-sync' ) ); ?>');"><?php esc_html_e( 'Delete Selected', 'ghl-contact-sync' ); ?></button></p>
+			<table class="widefat striped">
+				<thead><tr><th><input type="checkbox" class="ghlcs-check-all"></th><th><?php esc_html_e( 'Cart ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Items', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Total', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Current Status', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Tag State', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Activity', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Abandoned', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Order ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Sync', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Created', 'ghl-contact-sync' ); ?></th></tr></thead>
+				<tbody>
+					<?php foreach ( $result['rows'] as $cart ) : ?>
+						<tr>
+							<td><input type="checkbox" name="cart_ids[]" value="<?php echo esc_attr( $cart['id'] ); ?>"></td>
+							<td><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'carts', 'cart_id' => (int) $cart['id'] ), admin_url( 'admin.php' ) ) ); ?>"><?php echo esc_html( $cart['cart_uuid'] ); ?></a></td>
+							<td><?php echo esc_html( trim( $cart['first_name'] . ' ' . $cart['last_name'] ) ?: __( 'Guest', 'ghl-contact-sync' ) ); ?></td>
+							<td><?php echo esc_html( $cart['email'] ); ?></td>
+							<td><?php echo esc_html( $cart['item_count'] ); ?></td>
+							<td><?php echo wp_kses_post( function_exists( 'wc_price' ) ? wc_price( $cart['total'] ) : esc_html( $cart['total'] ) ); ?></td>
+							<td><?php echo esc_html( $this->status_label( $cart['status'] ) ); ?></td>
+							<td><?php echo esc_html( $this->tag_state_label( $cart ) ); ?></td>
+							<td><?php echo esc_html( $cart['last_activity_at'] ); ?></td>
+							<td><?php echo esc_html( $cart['abandoned_at'] ); ?></td>
+							<td><?php echo esc_html( $cart['order_id'] ); ?></td>
+							<td><?php echo esc_html( $cart['ghl_sync_status'] ); ?></td>
+							<td><?php echo esc_html( $cart['created_at'] ); ?></td>
+						</tr>
+					<?php endforeach; ?>
+					<?php if ( empty( $result['rows'] ) ) : ?>
+						<tr><td colspan="13"><?php esc_html_e( 'No carts found.', 'ghl-contact-sync' ); ?></td></tr>
+					<?php endif; ?>
+				</tbody>
+			</table>
+		</form>
+		<?php $this->render_check_all_script(); ?>
 		<?php
 	}
 
@@ -466,6 +503,9 @@ final class Admin_Page {
 		} elseif ( 'due_processed' === $message ) {
 			$count = isset( $_GET['count'] ) ? absint( $_GET['count'] ) : 0;
 			$text  = sprintf( _n( '%d due cart queued for abandonment processing.', '%d due carts queued for abandonment processing.', $count, 'ghl-contact-sync' ), $count );
+		} elseif ( 'deleted' === $message ) {
+			$deleted = isset( $_GET['deleted'] ) ? absint( $_GET['deleted'] ) : 0;
+			$text    = sprintf( _n( '%d cart deleted.', '%d carts deleted.', $deleted, 'ghl-contact-sync' ), $deleted );
 		} else {
 			return;
 		}
@@ -488,6 +528,12 @@ final class Admin_Page {
 		}
 		?>
 		<p><a href="<?php echo esc_url( add_query_arg( array( 'page' => 'ghl-contact-sync-abandoned-cart', 'tab' => 'carts' ), admin_url( 'admin.php' ) ) ); ?>">&larr; <?php esc_html_e( 'Back to carts', 'ghl-contact-sync' ); ?></a></p>
+		<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="ghlcs-inline-form">
+			<input type="hidden" name="action" value="ghlcs_delete_ac_carts">
+			<input type="hidden" name="cart_ids[]" value="<?php echo esc_attr( $cart['id'] ); ?>">
+			<?php wp_nonce_field( 'ghlcs_delete_ac_carts' ); ?>
+			<button class="button button-link-delete" onclick="return confirm('<?php echo esc_js( __( 'Delete this cart and its sync logs?', 'ghl-contact-sync' ) ); ?>');"><?php esc_html_e( 'Delete Cart', 'ghl-contact-sync' ); ?></button>
+		</form>
 		<div class="ghlcs-panel">
 			<h2><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></h2>
 			<p><?php echo esc_html( trim( $cart['first_name'] . ' ' . $cart['last_name'] ) ); ?> &lt;<?php echo esc_html( $cart['email'] ); ?>&gt;</p>
@@ -535,6 +581,25 @@ final class Admin_Page {
 		}
 
 		return __( 'Not tagged yet', 'ghl-contact-sync' );
+	}
+
+	/**
+	 * Render check-all helper.
+	 *
+	 * @return void
+	 */
+	private function render_check_all_script() {
+		?>
+		<script>
+			document.querySelectorAll('.ghlcs-check-all').forEach(function(control) {
+				control.addEventListener('change', function() {
+					control.closest('table').querySelectorAll('tbody input[type="checkbox"]').forEach(function(checkbox) {
+						checkbox.checked = control.checked;
+					});
+				});
+			});
+		</script>
+		<?php
 	}
 
 	/**

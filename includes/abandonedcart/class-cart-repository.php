@@ -379,6 +379,28 @@ final class Cart_Repository {
 	}
 
 	/**
+	 * Delete cart rows and their sync logs.
+	 *
+	 * @param array $cart_ids Cart IDs.
+	 * @return int
+	 */
+	public function delete_many( array $cart_ids ) {
+		global $wpdb;
+
+		$ids = array_values( array_filter( array_map( 'absint', $cart_ids ) ) );
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+
+		$wpdb->query( $wpdb->prepare( "DELETE FROM {$this->logs_table_name()} WHERE cart_id IN ({$placeholders})", $ids ) );
+		$deleted = $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->table_name()} WHERE id IN ({$placeholders})", $ids ) );
+
+		return false === $deleted ? 0 : (int) $deleted;
+	}
+
+	/**
 	 * Decode row JSON.
 	 *
 	 * @param array $row Row.

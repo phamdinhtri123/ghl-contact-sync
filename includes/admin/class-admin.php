@@ -76,6 +76,7 @@ final class Admin {
 
 		$this->forms_page->hooks();
 		$this->form_editor->hooks();
+		$this->submissions_page->hooks();
 		$this->settings_page->hooks();
 		$this->abandoned_cart_page->hooks();
 	}

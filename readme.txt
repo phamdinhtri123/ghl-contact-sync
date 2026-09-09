@@ -20,6 +20,7 @@ Version 1.1.0 adds an optional WooCommerce Abandoned Cart module. WordPress trac
 
 = 2.0.0 =
 * Improved WooCommerce abandoned cart recovery links, checkout identity handling, admin visibility, and frontend form submissions.
+* Added manual cleanup actions for saved form submissions and abandoned cart records.
 
 = 1.1.10 =
 * Debounce duplicate abandoned cart background jobs triggered by overlapping checkout events.

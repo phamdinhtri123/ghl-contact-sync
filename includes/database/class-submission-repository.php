@@ -166,6 +166,26 @@ final class Submission_Repository {
 	}
 
 	/**
+	 * Delete saved submissions.
+	 *
+	 * @param array $submission_ids Submission IDs.
+	 * @return int
+	 */
+	public function delete_many( array $submission_ids ) {
+		global $wpdb;
+
+		$ids = array_values( array_filter( array_map( 'absint', $submission_ids ) ) );
+		if ( empty( $ids ) ) {
+			return 0;
+		}
+
+		$placeholders = implode( ',', array_fill( 0, count( $ids ), '%d' ) );
+		$deleted      = $wpdb->query( $wpdb->prepare( "DELETE FROM {$this->table_name()} WHERE id IN ({$placeholders})", $ids ) );
+
+		return false === $deleted ? 0 : (int) $deleted;
+	}
+
+	/**
 	 * Decode JSON fields.
 	 *
 	 * @param array $row Submission row.
