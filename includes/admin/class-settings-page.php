@@ -61,7 +61,6 @@ final class Settings_Page {
 			}
 		}
 
-		$settings['logs_enabled']             = empty( $_POST['logs_enabled'] ) ? 0 : 1;
 		$settings['delete_data_on_uninstall'] = empty( $_POST['delete_data_on_uninstall'] ) ? 0 : 1;
 
 		update_option( 'ghlcs_settings', $settings, false );
@@ -93,7 +92,6 @@ final class Settings_Page {
 		$token_from_constant      = defined( 'GHL_CONTACT_SYNC_ACCESS_TOKEN' );
 		$location_id              = $location_from_constant ? GHL_CONTACT_SYNC_LOCATION_ID : ( $settings['location_id'] ?? '' );
 		$has_token                = $token_from_constant || ! empty( $settings['access_token_encrypted'] );
-		$logs_enabled             = ! empty( $settings['logs_enabled'] );
 		$delete_data_on_uninstall = ! empty( $settings['delete_data_on_uninstall'] );
 		$message                  = isset( $_GET['ghlcs_message'] ) ? sanitize_key( wp_unslash( $_GET['ghlcs_message'] ) ) : '';
 		$connection_test          = get_option( 'ghlcs_last_connection_test', array() );
@@ -202,8 +200,7 @@ final class Settings_Page {
 				</div>
 
 				<div class="ghlcs-panel">
-					<h2><?php esc_html_e( 'Data & Logs', 'ghl-contact-sync' ); ?></h2>
-					<p><label><input type="checkbox" name="logs_enabled" value="1" <?php checked( $logs_enabled ); ?>> <?php esc_html_e( 'Enable plugin logs', 'ghl-contact-sync' ); ?></label></p>
+					<h2><?php esc_html_e( 'Data', 'ghl-contact-sync' ); ?></h2>
 					<p><label><input type="checkbox" name="delete_data_on_uninstall" value="1" <?php checked( $delete_data_on_uninstall ); ?>> <?php esc_html_e( 'Delete plugin data on uninstall', 'ghl-contact-sync' ); ?></label></p>
 				</div>
 

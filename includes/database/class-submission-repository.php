@@ -28,6 +28,69 @@ final class Submission_Repository {
 	}
 
 	/**
+	 * Find a submission by ID.
+	 *
+	 * @param int $submission_id Submission ID.
+	 * @return array|null
+	 */
+	public function get( $submission_id ) {
+		global $wpdb;
+
+		$row = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$this->table_name()} WHERE id = %d", (int) $submission_id ), ARRAY_A );
+
+		return $row ? $this->decode_row( $row ) : null;
+	}
+
+	/**
+	 * List saved submissions for admin.
+	 *
+	 * @param array $args Query args.
+	 * @return array
+	 */
+	public function list_submissions( array $args = array() ) {
+		global $wpdb;
+
+		$form_id = isset( $args['form_id'] ) ? absint( $args['form_id'] ) : 0;
+		$status  = isset( $args['status'] ) ? sanitize_key( $args['status'] ) : '';
+		$search  = isset( $args['search'] ) ? sanitize_text_field( $args['search'] ) : '';
+		$page    = max( 1, isset( $args['page'] ) ? (int) $args['page'] : 1 );
+		$limit   = max( 1, min( 100, isset( $args['limit'] ) ? (int) $args['limit'] : 20 ) );
+		$offset  = ( $page - 1 ) * $limit;
+		$where   = 'WHERE 1=1';
+		$params  = array();
+
+		if ( $form_id ) {
+			$where    .= ' AND form_id = %d';
+			$params[] = $form_id;
+		}
+
+		if ( '' !== $status ) {
+			$where    .= ' AND sync_status = %s';
+			$params[] = $status;
+		}
+
+		if ( '' !== $search ) {
+			$where    .= ' AND (email LIKE %s OR phone LIKE %s OR ghl_contact_id LIKE %s)';
+			$like      = '%' . $wpdb->esc_like( $search ) . '%';
+			$params[] = $like;
+			$params[] = $like;
+			$params[] = $like;
+		}
+
+		$count_sql = "SELECT COUNT(*) FROM {$this->table_name()} {$where}";
+		$rows_sql  = "SELECT * FROM {$this->table_name()} {$where} ORDER BY created_at DESC LIMIT %d OFFSET %d";
+		$total     = (int) $wpdb->get_var( $params ? $wpdb->prepare( $count_sql, $params ) : $count_sql );
+		$params[]  = $limit;
+		$params[]  = $offset;
+		$rows      = $wpdb->get_results( $wpdb->prepare( $rows_sql, $params ), ARRAY_A );
+
+		return array(
+			'total' => $total,
+			'rows'  => array_map( array( $this, 'decode_row' ), $rows ? $rows : array() ),
+		);
+	}
+
+	/**
 	 * Insert a frontend submission.
 	 *
 	 * @param array $submission Submission data.
@@ -100,5 +163,20 @@ final class Submission_Repository {
 			$formats,
 			array( '%d' )
 		);
+	}
+
+	/**
+	 * Decode JSON fields.
+	 *
+	 * @param array $row Submission row.
+	 * @return array
+	 */
+	private function decode_row( array $row ) {
+		$row['submission_data'] = ! empty( $row['submission_data'] ) ? json_decode( $row['submission_data'], true ) : array();
+		if ( ! is_array( $row['submission_data'] ) ) {
+			$row['submission_data'] = array();
+		}
+
+		return $row;
 	}
 }

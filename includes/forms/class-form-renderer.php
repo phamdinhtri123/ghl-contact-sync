@@ -317,12 +317,13 @@ final class Form_Renderer {
 		$result = $client->create_contact( $payload );
 
 		if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
+			$message = is_wp_error( $result ) ? $result->get_error_message() : ( $result['message'] ?? __( 'GHL sync failed.', 'ghl-contact-sync' ) );
 			$repository->update_sync(
 				$submission_id,
 				array(
 					'sync_status'   => 'failed',
 					'sync_attempts' => 1,
-					'last_error'    => is_wp_error( $result ) ? $result->get_error_message() : ( $result['message'] ?? __( 'GHL sync failed.', 'ghl-contact-sync' ) ),
+					'last_error'    => $message,
 				)
 			);
 

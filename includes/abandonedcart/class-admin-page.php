@@ -359,8 +359,9 @@ final class Admin_Page {
 		</div>
 		<div class="ghlcs-panel ghlcs-help-panel">
 			<h2><?php esc_html_e( 'GHL Workflow Setup Guide', 'ghl-contact-sync' ); ?></h2>
+			<h3><?php esc_html_e( 'Workflow 1: Send Abandoned Cart Emails', 'ghl-contact-sync' ); ?></h3>
 			<ol>
-				<li><?php esc_html_e( 'Create a GoHighLevel Workflow.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Create a GoHighLevel workflow for the abandoned cart email sequence.', 'ghl-contact-sync' ); ?></li>
 				<li><?php esc_html_e( 'Use Contact Tag Added as the trigger.', 'ghl-contact-sync' ); ?></li>
 				<li><?php esc_html_e( 'Choose the same abandoned cart tag configured in WordPress.', 'ghl-contact-sync' ); ?></li>
 				<li><?php esc_html_e( 'Enable workflow re-entry if future abandoned carts should trigger again.', 'ghl-contact-sync' ); ?></li>
@@ -368,6 +369,15 @@ final class Admin_Page {
 				<li><?php esc_html_e( 'Before every email, check that the contact still has the abandoned cart tag.', 'ghl-contact-sync' ); ?></li>
 				<li><?php esc_html_e( 'Send the recovery email only on the YES branch.', 'ghl-contact-sync' ); ?></li>
 				<li><?php esc_html_e( 'Repeat the tag check before every later recovery email.', 'ghl-contact-sync' ); ?></li>
+			</ol>
+			<h3><?php esc_html_e( 'Workflow 2: Stop Abandoned Cart Emails', 'ghl-contact-sync' ); ?></h3>
+			<ol>
+				<li><?php esc_html_e( 'Create a second GoHighLevel workflow to stop the email sequence.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Use Contact Tag Removed as the trigger.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Choose the same abandoned cart tag configured in WordPress.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Add the Remove from Workflow action.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Select Another workflow, then choose Workflow 1.', 'ghl-contact-sync' ); ?></li>
+				<li><?php esc_html_e( 'Publish both workflows. When the tag is removed after recovery or purchase, this workflow removes the contact from the old email sequence.', 'ghl-contact-sync' ); ?></li>
 			</ol>
 		</div>
 		<?php

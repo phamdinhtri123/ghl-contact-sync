@@ -4,11 +4,11 @@ Tags: forms, gohighlevel, crm, contacts, leads
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.1.10
+Stable tag: 2.0.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Create reusable frontend forms, store submissions locally, and sync contacts to GoHighLevel.
+Create reusable frontend forms, store submissions locally, sync contacts to GoHighLevel, and recover WooCommerce abandoned carts.
 
 == Description ==
 
@@ -18,9 +18,14 @@ Version 1.1.0 adds an optional WooCommerce Abandoned Cart module. WordPress trac
 
 == Changelog ==
 
+= 2.0.0 =
+* Improved WooCommerce abandoned cart recovery links, checkout identity handling, admin visibility, and frontend form submissions.
+
 = 1.1.10 =
 * Debounce duplicate abandoned cart background jobs triggered by overlapping checkout events.
 * Clarify abandoned cart admin status columns and expected GHL tag state.
+* Added a plugin Settings quick link and expanded the abandoned cart workflow guide.
+* Added admin submission listing for frontend forms.
 
 = 1.1.9 =
 * Prevent repeated recovery link clicks from duplicating cart item quantities.

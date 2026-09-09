@@ -60,7 +60,6 @@ final class Activator {
 
 		$charset_collate = $wpdb->get_charset_collate();
 		$submissions     = $wpdb->prefix . 'ghl_contact_sync_submissions';
-		$logs            = $wpdb->prefix . 'ghl_contact_sync_logs';
 		$carts           = $wpdb->prefix . 'ghl_contact_sync_carts';
 		$cart_sync_logs  = $wpdb->prefix . 'ghl_contact_sync_cart_sync_logs';
 
@@ -89,19 +88,6 @@ final class Activator {
 			KEY form_id (form_id),
 			KEY email (email),
 			KEY sync_status (sync_status),
-			KEY created_at (created_at)
-		) {$charset_collate};";
-
-		$sql_logs = "CREATE TABLE {$logs} (
-			id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
-			level varchar(20) NOT NULL DEFAULT 'info',
-			event varchar(100) NOT NULL,
-			message text NULL,
-			context longtext NULL,
-			created_at datetime NOT NULL,
-			PRIMARY KEY  (id),
-			KEY level (level),
-			KEY event (event),
 			KEY created_at (created_at)
 		) {$charset_collate};";
 
@@ -162,7 +148,6 @@ final class Activator {
 		) {$charset_collate};";
 
 		dbDelta( $sql_submissions );
-		dbDelta( $sql_logs );
 		dbDelta( $sql_carts );
 		dbDelta( $sql_cart_sync_logs );
 	}
@@ -176,7 +161,6 @@ final class Activator {
 		$defaults = array(
 			'location_id'              => '',
 			'access_token_encrypted'   => '',
-			'logs_enabled'             => 1,
 			'delete_data_on_uninstall' => 0,
 			'abandoned_cart'           => array(
 				'enabled'                  => 0,

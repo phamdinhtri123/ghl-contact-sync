@@ -47,13 +47,6 @@ final class Admin {
 	private $settings_page;
 
 	/**
-	 * Logs page.
-	 *
-	 * @var Logs_Page
-	 */
-	private $logs_page;
-
-	/**
 	 * Abandoned cart page.
 	 *
 	 * @var Abandoned_Cart_Page
@@ -68,7 +61,6 @@ final class Admin {
 		$this->form_editor      = new Form_Editor();
 		$this->submissions_page = new Submissions_Page();
 		$this->settings_page    = new Settings_Page();
-		$this->logs_page        = new Logs_Page();
 		$this->abandoned_cart_page = new Abandoned_Cart_Page();
 	}
 
@@ -80,6 +72,7 @@ final class Admin {
 	public function hooks() {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_filter( 'plugin_action_links_' . GHLCS_PLUGIN_BASENAME, array( $this, 'plugin_action_links' ) );
 
 		$this->forms_page->hooks();
 		$this->form_editor->hooks();
@@ -148,14 +141,24 @@ final class Admin {
 			array( $this->settings_page, 'render' )
 		);
 
-		add_submenu_page(
-			'ghl-contact-sync',
-			__( 'Logs', 'ghl-contact-sync' ),
-			__( 'Logs', 'ghl-contact-sync' ),
-			'manage_options',
-			'ghl-contact-sync-logs',
-			array( $this->logs_page, 'render' )
+	}
+
+	/**
+	 * Add quick links on the Plugins screen.
+	 *
+	 * @param array $links Existing plugin links.
+	 * @return array
+	 */
+	public function plugin_action_links( $links ) {
+		$settings_link = sprintf(
+			'<a href="%1$s">%2$s</a>',
+			esc_url( admin_url( 'admin.php?page=ghl-contact-sync-settings' ) ),
+			esc_html__( 'Settings', 'ghl-contact-sync' )
 		);
+
+		array_unshift( $links, $settings_link );
+
+		return $links;
 	}
 
 	/**
