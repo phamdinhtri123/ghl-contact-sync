@@ -289,6 +289,6 @@ final class GHL_Cart_Sync_Service {
 		}
 
 		set_transient( 'ghlcs_ac_retry_' . md5( $hook . wp_json_encode( $args ) ), $attempts + 1, DAY_IN_SECONDS );
-		Background_Jobs::enqueue_unique( $hook, $args, $urgent ? 120 : ( 300 * ( $attempts + 1 ) ) );
+		Background_Jobs::enqueue_unique( $hook, $args, $urgent ? 120 : ( 300 * ( $attempts + 1 ) ), false );
 	}
 }

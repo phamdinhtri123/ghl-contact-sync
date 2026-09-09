@@ -84,11 +84,24 @@ final class Background_Jobs {
 	 * @param string $hook Hook.
 	 * @param array  $args Args.
 	 * @param int    $delay Delay seconds.
+	 * @param bool   $debounce Whether to debounce repeated requests.
 	 * @return void
 	 */
-	public static function enqueue_unique( $hook, array $args, $delay = 0 ) {
-		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, 'ghl-contact-sync' ) ) {
+	public static function enqueue_unique( $hook, array $args, $delay = 0, $debounce = true ) {
+		$key = 'ghlcs_ac_job_' . md5( $hook . wp_json_encode( $args ) );
+		if ( $debounce && get_transient( $key ) ) {
 			return;
+		}
+
+		if ( function_exists( 'as_has_scheduled_action' ) && as_has_scheduled_action( $hook, $args, 'ghl-contact-sync' ) ) {
+			if ( $debounce ) {
+				set_transient( $key, 1, max( 60, (int) $delay + 60 ) );
+			}
+			return;
+		}
+
+		if ( $debounce ) {
+			set_transient( $key, 1, max( 60, (int) $delay + 60 ) );
 		}
 
 		if ( function_exists( 'as_schedule_single_action' ) ) {

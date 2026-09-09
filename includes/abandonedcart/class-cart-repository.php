@@ -99,6 +99,7 @@ final class Cart_Repository {
 	 * @param string $session_key Session key.
 	 * @param array  $snapshot Cart snapshot.
 	 * @param array  $identity Customer identity.
+	 * @param int    $cart_id Optional cart ID to update.
 	 * @return int|\WP_Error
 	 */
 	public function upsert_current( $session_key, array $snapshot, array $identity, $cart_id = 0 ) {

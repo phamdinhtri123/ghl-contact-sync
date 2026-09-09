@@ -416,7 +416,7 @@ final class Admin_Page {
 			<p class="description"><?php esc_html_e( 'For testing: immediately marks eligible inactive carts as abandoned, syncs cart fields, and adds the configured GHL tag.', 'ghl-contact-sync' ); ?></p>
 		</form>
 		<table class="widefat striped">
-			<thead><tr><th><?php esc_html_e( 'Cart ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Items', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Total', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Status', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Activity', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Abandoned At', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Order ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Sync', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Date', 'ghl-contact-sync' ); ?></th></tr></thead>
+			<thead><tr><th><?php esc_html_e( 'Cart ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Customer', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Email', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Items', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Total', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Current Status', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Tag State', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Activity', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Last Abandoned', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Order ID', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'GHL Sync', 'ghl-contact-sync' ); ?></th><th><?php esc_html_e( 'Created', 'ghl-contact-sync' ); ?></th></tr></thead>
 			<tbody>
 				<?php foreach ( $result['rows'] as $cart ) : ?>
 					<tr>
@@ -425,7 +425,8 @@ final class Admin_Page {
 						<td><?php echo esc_html( $cart['email'] ); ?></td>
 						<td><?php echo esc_html( $cart['item_count'] ); ?></td>
 						<td><?php echo wp_kses_post( function_exists( 'wc_price' ) ? wc_price( $cart['total'] ) : esc_html( $cart['total'] ) ); ?></td>
-						<td><?php echo esc_html( ucwords( str_replace( '_', ' ', $cart['status'] ) ) ); ?></td>
+						<td><?php echo esc_html( $this->status_label( $cart['status'] ) ); ?></td>
+						<td><?php echo esc_html( $this->tag_state_label( $cart ) ); ?></td>
 						<td><?php echo esc_html( $cart['last_activity_at'] ); ?></td>
 						<td><?php echo esc_html( $cart['abandoned_at'] ); ?></td>
 						<td><?php echo esc_html( $cart['order_id'] ); ?></td>
@@ -434,7 +435,7 @@ final class Admin_Page {
 					</tr>
 				<?php endforeach; ?>
 				<?php if ( empty( $result['rows'] ) ) : ?>
-					<tr><td colspan="11"><?php esc_html_e( 'No carts found.', 'ghl-contact-sync' ); ?></td></tr>
+					<tr><td colspan="12"><?php esc_html_e( 'No carts found.', 'ghl-contact-sync' ); ?></td></tr>
 				<?php endif; ?>
 			</tbody>
 		</table>
@@ -492,10 +493,38 @@ final class Admin_Page {
 		</div>
 		<div class="ghlcs-panel">
 			<h2><?php esc_html_e( 'Timeline & GHL', 'ghl-contact-sync' ); ?></h2>
-			<p><?php echo esc_html( sprintf( 'Status: %s | Created: %s | Updated: %s | Last Activity: %s | Abandoned: %s | Recovered: %s | Order: %s', $cart['status'], $cart['created_at'], $cart['updated_at'], $cart['last_activity_at'], $cart['abandoned_at'], $cart['recovered_at'], $cart['order_id'] ) ); ?></p>
+			<p><?php echo esc_html( sprintf( 'Current Status: %s | GHL Tag State: %s | Created: %s | Updated: %s | Last Activity: %s | Last Abandoned: %s | Recovered: %s | Order: %s', $this->status_label( $cart['status'] ), $this->tag_state_label( $cart ), $cart['created_at'], $cart['updated_at'], $cart['last_activity_at'], $cart['abandoned_at'], $cart['recovered_at'], $cart['order_id'] ) ); ?></p>
 			<p><?php echo esc_html( sprintf( 'Sync: %s | Last Sync: %s | Last Error: %s | Token Expires: %s', $cart['ghl_sync_status'], $cart['ghl_synced_at'], $cart['last_error'], $cart['recovery_expires_at'] ) ); ?></p>
 		</div>
 		<?php
+	}
+
+	/**
+	 * Human-readable cart status.
+	 *
+	 * @param string $status Cart status.
+	 * @return string
+	 */
+	private function status_label( $status ) {
+		return ucwords( str_replace( '_', ' ', (string) $status ) );
+	}
+
+	/**
+	 * Expected GHL tag/workflow state from the current cart status.
+	 *
+	 * @param array $cart Cart row.
+	 * @return string
+	 */
+	private function tag_state_label( array $cart ) {
+		if ( 'abandoned' === $cart['status'] ) {
+			return __( 'Tag should be active', 'ghl-contact-sync' );
+		}
+
+		if ( in_array( $cart['status'], array( 'active', 'order_pending', 'recovered', 'expired' ), true ) && ! empty( $cart['abandoned_at'] ) ) {
+			return __( 'Tag should be removed', 'ghl-contact-sync' );
+		}
+
+		return __( 'Not tagged yet', 'ghl-contact-sync' );
 	}
 
 	/**

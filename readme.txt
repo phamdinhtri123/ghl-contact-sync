@@ -4,7 +4,7 @@ Tags: forms, gohighlevel, crm, contacts, leads
 Requires at least: 6.0
 Tested up to: 6.6
 Requires PHP: 7.4
-Stable tag: 1.1.9
+Stable tag: 1.1.10
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -17,6 +17,10 @@ GHL Contact Sync lets WordPress administrators manage reusable forms and prepare
 Version 1.1.0 adds an optional WooCommerce Abandoned Cart module. WordPress tracks cart state, recovery, and order conversion. GoHighLevel receives contact/cart custom fields and the configured abandoned cart tag, then sends recovery emails through GHL Workflows.
 
 == Changelog ==
+
+= 1.1.10 =
+* Debounce duplicate abandoned cart background jobs triggered by overlapping checkout events.
+* Clarify abandoned cart admin status columns and expected GHL tag state.
 
 = 1.1.9 =
 * Prevent repeated recovery link clicks from duplicating cart item quantities.
