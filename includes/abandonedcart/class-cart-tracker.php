@@ -122,13 +122,14 @@ final class Cart_Tracker {
 			$this->session_key(),
 			$this->snapshot(),
 			array(
-				'user_id'    => get_current_user_id(),
-				'email'      => $email,
+				'user_id'      => get_current_user_id(),
+				'email'        => $email,
 				'email_source' => 'checkout',
-				'first_name' => $first_name,
-				'last_name'  => $last_name,
-				'phone'      => $phone,
-			)
+				'first_name'   => $first_name,
+				'last_name'    => $last_name,
+				'phone'        => $phone,
+			),
+			$this->recovered_cart_id()
 		);
 
 		if ( is_wp_error( $result ) ) {
@@ -210,7 +211,8 @@ final class Cart_Tracker {
 				'first_name'   => isset( $values['first_name'] ) ? sanitize_text_field( wp_unslash( $values['first_name'] ) ) : '',
 				'last_name'    => isset( $values['last_name'] ) ? sanitize_text_field( wp_unslash( $values['last_name'] ) ) : '',
 				'phone'        => isset( $values['phone'] ) ? sanitize_text_field( wp_unslash( $values['phone'] ) ) : '',
-			)
+			),
+			$this->recovered_cart_id()
 		);
 
 		if ( ! is_wp_error( $result ) && $result && ! empty( Settings::get()['ghl_sync_enabled'] ) ) {
