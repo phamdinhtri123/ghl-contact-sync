@@ -125,6 +125,7 @@ final class Activator {
 			order_id bigint(20) unsigned NULL,
 			abandonment_cycle int(10) unsigned NOT NULL DEFAULT 0,
 			recovery_token_hash varchar(255) NULL,
+			recovery_token_encrypted longtext NULL,
 			recovery_expires_at datetime NULL,
 			ghl_sync_status varchar(30) NOT NULL DEFAULT 'pending',
 			ghl_synced_at datetime NULL,

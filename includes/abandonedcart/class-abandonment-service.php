@@ -7,6 +7,8 @@
 
 namespace GHLContactSync\AbandonedCart;
 
+use GHLContactSync\Security\Token_Encryption;
+
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
@@ -45,9 +47,10 @@ final class Abandonment_Service {
 		}
 
 		$settings = Settings::get();
-		$token    = $cart['cart_uuid'] . '.' . wp_generate_password( 48, false, false );
+		$token    = $this->recovery_token( $cart );
 		$cycle    = (int) $cart['abandonment_cycle'] + 1;
 		$expires  = date( 'Y-m-d H:i:s', current_time( 'timestamp' ) + ( max( 1, (int) $settings['recovery_expires_days'] ) * DAY_IN_SECONDS ) );
+		$encrypted_token = Token_Encryption::encrypt_token( $token );
 
 		$this->repository->update(
 			$cart['id'],
@@ -56,6 +59,7 @@ final class Abandonment_Service {
 				'abandoned_at'         => current_time( 'mysql' ),
 				'abandonment_cycle'    => $cycle,
 				'recovery_token_hash'  => wp_hash_password( $token ),
+				'recovery_token_encrypted' => is_wp_error( $encrypted_token ) ? '' : $encrypted_token,
 				'recovery_expires_at'  => $expires,
 				'ghl_sync_status'      => 'pending',
 				'last_error'           => '',
@@ -73,5 +77,23 @@ final class Abandonment_Service {
 			'cycle'   => $cycle,
 			'token'   => $token,
 		);
+	}
+
+	/**
+	 * Reuse an unexpired recovery token for the same cart when available.
+	 *
+	 * @param array $cart Cart row.
+	 * @return string
+	 */
+	private function recovery_token( array $cart ) {
+		if ( ! empty( $cart['recovery_token_encrypted'] ) && ! empty( $cart['recovery_expires_at'] ) && $cart['recovery_expires_at'] >= current_time( 'mysql' ) ) {
+			$token = Token_Encryption::decrypt_token( $cart['recovery_token_encrypted'] );
+
+			if ( ! is_wp_error( $token ) && '' !== $token ) {
+				return $token;
+			}
+		}
+
+		return $cart['cart_uuid'] . '.' . wp_generate_password( 48, false, false );
 	}
 }

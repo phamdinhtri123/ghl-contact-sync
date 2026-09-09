@@ -92,15 +92,19 @@ final class Order_Lifecycle_Service {
 		$this->repository->update(
 			$row['id'],
 			array(
-				'status'       => 'recovered',
-				'recovered_at' => current_time( 'mysql' ),
-				'last_error'   => '',
+				'status'                   => 'recovered',
+				'recovered_at'             => current_time( 'mysql' ),
+				'recovery_token_hash'      => '',
+				'recovery_token_encrypted' => '',
+				'recovery_expires_at'      => null,
+				'last_error'               => '',
 			)
 		);
 		$this->repository->add_log( $row['id'], 'info', 'cart_recovered', sprintf( 'Order #%d recovered the cart.', $order_id ) );
 
 		Background_Jobs::enqueue_unique( 'ghlcs_ac_remove_tag', array( (int) $row['id'], (int) $row['abandonment_cycle'] ), 0 );
 		Background_Jobs::enqueue_unique( 'ghlcs_ac_sync_status', array( (int) $row['id'], 'recovered' ), 60 );
+		$this->clear_recovery_context();
 	}
 
 	/**
@@ -130,6 +134,28 @@ final class Order_Lifecycle_Service {
 			return null;
 		}
 
+		$recovered_cart_id = absint( WC()->session->get( 'ghlcs_recovered_cart_id' ) );
+		if ( $recovered_cart_id ) {
+			$cart = $this->repository->get( $recovered_cart_id );
+			if ( $cart && ! in_array( $cart['status'], array( 'recovered', 'expired' ), true ) ) {
+				return $cart;
+			}
+		}
+
 		return $this->repository->get_by_session( wp_hash( (string) WC()->session->get_customer_id() ) );
+	}
+
+	/**
+	 * Clear the session marker after a successful purchase.
+	 *
+	 * @return void
+	 */
+	private function clear_recovery_context() {
+		if ( ! function_exists( 'WC' ) || ! WC()->session || ! method_exists( WC()->session, '__unset' ) ) {
+			return;
+		}
+
+		WC()->session->__unset( 'ghlcs_recovered_cart_id' );
+		WC()->session->__unset( 'ghlcs_recovered_cart_email' );
 	}
 }

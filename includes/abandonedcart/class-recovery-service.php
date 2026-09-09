@@ -77,6 +77,8 @@ final class Recovery_Service {
 		}
 
 		$settings = Settings::get();
+		$this->bind_recovered_cart( $cart );
+
 		if ( 'replace' === $settings['recovery_cart_behavior'] ) {
 			WC()->cart->empty_cart();
 		}
@@ -151,5 +153,44 @@ final class Recovery_Service {
 		}
 
 		return null;
+	}
+
+	/**
+	 * Bind the current Woo session to the recovered cart record.
+	 *
+	 * @param array $cart Cart row.
+	 * @return void
+	 */
+	private function bind_recovered_cart( array $cart ) {
+		if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+			return;
+		}
+
+		WC()->session->set( 'ghlcs_recovered_cart_id', (int) $cart['id'] );
+		WC()->session->set( 'ghlcs_recovered_cart_email', $cart['email'] );
+
+		$session_key = $this->current_session_key();
+		if ( '' !== $session_key ) {
+			$this->repository->update(
+				$cart['id'],
+				array(
+					'session_key' => $session_key,
+				)
+			);
+		}
+	}
+
+	/**
+	 * Current Woo session key using the same hash as the tracker.
+	 *
+	 * @return string
+	 */
+	private function current_session_key() {
+		$customer_id = WC()->session->get_customer_id();
+		if ( $customer_id ) {
+			return wp_hash( (string) $customer_id );
+		}
+
+		return wp_hash( wp_get_session_token() ? wp_get_session_token() : (string) get_current_user_id() );
 	}
 }

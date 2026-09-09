@@ -101,14 +101,15 @@ final class Cart_Repository {
 	 * @param array  $identity Customer identity.
 	 * @return int|\WP_Error
 	 */
-	public function upsert_current( $session_key, array $snapshot, array $identity ) {
+	public function upsert_current( $session_key, array $snapshot, array $identity, $cart_id = 0 ) {
 		global $wpdb;
 
-		$existing = $this->get_by_session( $session_key );
+		$existing = $cart_id ? $this->get( (int) $cart_id ) : $this->get_by_session( $session_key );
 		$now      = current_time( 'mysql' );
 		$email    = $this->resolve_email( $existing, $identity );
 		$email_changed = $existing && ! empty( $existing['email'] ) && '' !== $email && strtolower( $email ) !== strtolower( $existing['email'] );
 		$status   = empty( $snapshot['item_count'] ) ? 'expired' : 'active';
+		$user_id  = $this->resolve_user_id( $existing, $identity, $email );
 
 		if ( ! $existing && empty( $snapshot['item_count'] ) ) {
 			return null;
@@ -120,7 +121,7 @@ final class Cart_Repository {
 
 		$data = array(
 			'session_key'      => sanitize_text_field( $session_key ),
-			'user_id'          => ! empty( $identity['user_id'] ) ? (int) $identity['user_id'] : null,
+			'user_id'          => $user_id,
 			'email'            => $email,
 			'ghl_contact_id'   => $email_changed ? '' : ( $existing['ghl_contact_id'] ?? '' ),
 			'first_name'       => isset( $identity['first_name'] ) ? sanitize_text_field( $identity['first_name'] ) : ( $existing['first_name'] ?? '' ),
@@ -171,8 +172,8 @@ final class Cart_Repository {
 		global $wpdb;
 
 		$allowed = array(
-			'contact_id', 'user_id', 'ghl_contact_id', 'email', 'first_name', 'last_name', 'phone', 'status',
-			'order_id', 'abandonment_cycle', 'recovery_token_hash', 'recovery_expires_at', 'ghl_sync_status',
+			'session_key', 'contact_id', 'user_id', 'ghl_contact_id', 'email', 'first_name', 'last_name', 'phone', 'status',
+			'order_id', 'abandonment_cycle', 'recovery_token_hash', 'recovery_token_encrypted', 'recovery_expires_at', 'ghl_sync_status',
 			'ghl_synced_at', 'last_error', 'updated_at', 'last_activity_at', 'abandoned_at', 'recovered_at',
 		);
 		$clean   = array();
@@ -408,5 +409,35 @@ final class Cart_Repository {
 		}
 
 		return '' !== $existing_email ? $existing_email : $new_email;
+	}
+
+	/**
+	 * Resolve user ID without attaching a recovered customer cart to another logged-in account.
+	 *
+	 * @param array|null $existing Existing cart.
+	 * @param array      $identity New identity data.
+	 * @param string     $email Resolved email.
+	 * @return int|null
+	 */
+	private function resolve_user_id( $existing, array $identity, $email ) {
+		$new_user_id = ! empty( $identity['user_id'] ) ? (int) $identity['user_id'] : null;
+		$source      = isset( $identity['email_source'] ) ? sanitize_key( $identity['email_source'] ) : 'account';
+
+		if ( 'checkout' === $source ) {
+			if ( $new_user_id && ! empty( $identity['email'] ) ) {
+				$user = get_userdata( $new_user_id );
+				if ( $user && strtolower( $user->user_email ) === strtolower( $identity['email'] ) ) {
+					return $new_user_id;
+				}
+			}
+
+			return ! empty( $existing['user_id'] ) && ! empty( $existing['email'] ) && strtolower( $existing['email'] ) === strtolower( $email ) ? (int) $existing['user_id'] : null;
+		}
+
+		if ( $existing && ! empty( $existing['email'] ) && ! empty( $identity['email'] ) && strtolower( $existing['email'] ) !== strtolower( $identity['email'] ) ) {
+			return ! empty( $existing['user_id'] ) ? (int) $existing['user_id'] : null;
+		}
+
+		return $new_user_id ? $new_user_id : ( ! empty( $existing['user_id'] ) ? (int) $existing['user_id'] : null );
 	}
 }

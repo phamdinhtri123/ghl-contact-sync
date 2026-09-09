@@ -77,8 +77,9 @@ final class Cart_Tracker {
 		$session_key = $this->session_key();
 		$snapshot    = $this->snapshot();
 		$identity    = $this->identity();
+		$cart_id     = $this->recovered_cart_id();
 
-		$result = $this->repository->upsert_current( $session_key, $snapshot, $identity );
+		$result = $this->repository->upsert_current( $session_key, $snapshot, $identity, $cart_id );
 
 		if ( ! is_wp_error( $result ) && $result ) {
 			$cart = $this->repository->get( $result );
@@ -327,5 +328,28 @@ final class Cart_Tracker {
 			'last_name'  => get_user_meta( $user_id, 'billing_last_name', true ) ?: get_user_meta( $user_id, 'last_name', true ),
 			'phone'      => get_user_meta( $user_id, 'billing_phone', true ),
 		);
+	}
+
+	/**
+	 * Cart ID currently bound by a recovery link.
+	 *
+	 * @return int
+	 */
+	private function recovered_cart_id() {
+		if ( ! function_exists( 'WC' ) || ! WC()->session ) {
+			return 0;
+		}
+
+		$cart_id = absint( WC()->session->get( 'ghlcs_recovered_cart_id' ) );
+		if ( ! $cart_id ) {
+			return 0;
+		}
+
+		$cart = $this->repository->get( $cart_id );
+		if ( ! $cart || in_array( $cart['status'], array( 'recovered', 'order_pending' ), true ) ) {
+			return 0;
+		}
+
+		return $cart_id;
 	}
 }
