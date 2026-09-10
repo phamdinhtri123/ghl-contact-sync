@@ -130,7 +130,7 @@ final class GHL_Client {
 			)
 		);
 
-		return $this->request( 'contacts/', $token, self::API_VERSION, 'POST', $payload );
+		return $this->request( 'contacts/', $token, self::LOCATION_API_VERSION, 'POST', $payload );
 	}
 
 	/**
@@ -165,6 +165,149 @@ final class GHL_Client {
 		);
 
 		return $this->request( 'contacts/upsert', $token, self::LOCATION_API_VERSION, 'POST', $payload );
+	}
+
+	/**
+	 * Save a contact by exact email match only.
+	 *
+	 * @param array $contact Contact payload.
+	 * @return array|\WP_Error
+	 */
+	public function save_contact_by_email( array $contact ) {
+		$email = ! empty( $contact['email'] ) ? sanitize_email( $contact['email'] ) : '';
+
+		if ( '' === $email || ! is_email( $email ) ) {
+			return new \WP_Error( 'ghlcs_missing_contact_email', __( 'A valid email is required to sync a GHL contact.', 'ghl-contact-sync' ) );
+		}
+
+		$tags = array();
+		if ( ! empty( $contact['tags'] ) && is_array( $contact['tags'] ) ) {
+			$tags = array_values( array_filter( array_map( 'sanitize_text_field', $contact['tags'] ) ) );
+		}
+
+		$existing = $this->find_contact_by_email( $email );
+
+		if ( is_wp_error( $existing ) ) {
+			return $existing;
+		}
+
+		if ( $existing ) {
+			$contact_id = $this->extract_contact_id( $existing );
+
+			if ( '' === $contact_id ) {
+				return new \WP_Error( 'ghlcs_missing_contact_id', __( 'Matched GHL contact did not include an ID.', 'ghl-contact-sync' ) );
+			}
+
+			unset( $contact['tags'] );
+
+			$result = $this->update_contact( $contact_id, $contact );
+
+			if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
+				return $result;
+			}
+
+			if ( ! empty( $tags ) ) {
+				$tag_result = $this->add_contact_tags( $contact_id, $tags );
+
+				if ( is_wp_error( $tag_result ) || empty( $tag_result['success'] ) ) {
+					return is_wp_error( $tag_result ) ? $tag_result : $tag_result;
+				}
+			}
+
+			if ( empty( $result['body']['contact']['id'] ) && empty( $result['body']['id'] ) ) {
+				$result['body']['contact']['id'] = $contact_id;
+			}
+
+			return $result;
+		}
+
+		return $this->create_contact( $contact );
+	}
+
+	/**
+	 * Update an existing GHL contact.
+	 *
+	 * @param string $contact_id GHL contact ID.
+	 * @param array  $contact Contact payload.
+	 * @return array|\WP_Error
+	 */
+	public function update_contact( $contact_id, array $contact ) {
+		$token = $this->get_access_token();
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		$contact_id = sanitize_text_field( $contact_id );
+
+		if ( '' === $contact_id ) {
+			return new \WP_Error( 'ghlcs_missing_contact_id', __( 'Contact ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		return $this->request( 'contacts/' . rawurlencode( $contact_id ), $token, self::LOCATION_API_VERSION, 'PUT', $contact );
+	}
+
+	/**
+	 * Find an existing contact by exact email match.
+	 *
+	 * @param string $email Email address.
+	 * @return array|null|\WP_Error
+	 */
+	public function find_contact_by_email( $email ) {
+		$location_id = $this->get_location_id();
+		$token       = $this->get_access_token();
+		$email       = sanitize_email( $email );
+
+		if ( '' === $location_id ) {
+			return new \WP_Error( 'ghlcs_missing_location_id', __( 'Location ID is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( is_wp_error( $token ) ) {
+			return $token;
+		}
+
+		if ( '' === $token ) {
+			return new \WP_Error( 'ghlcs_missing_access_token', __( 'Access Token is required.', 'ghl-contact-sync' ) );
+		}
+
+		if ( '' === $email || ! is_email( $email ) ) {
+			return new \WP_Error( 'ghlcs_missing_contact_email', __( 'A valid email is required to sync a GHL contact.', 'ghl-contact-sync' ) );
+		}
+
+		$response = $this->request(
+			'contacts/lookup?' . http_build_query(
+				array(
+					'locationId' => $location_id,
+					'email'      => $email,
+					'limit'      => 20,
+				),
+				'',
+				'&',
+				PHP_QUERY_RFC3986
+			),
+			$token,
+			self::LOCATION_API_VERSION
+		);
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		if ( empty( $response['success'] ) ) {
+			return new \WP_Error( 'ghlcs_contact_search_failed', $response['message'] ?? __( 'GHL contact search failed.', 'ghl-contact-sync' ) );
+		}
+
+		foreach ( $this->extract_contacts( $response['body'] ) as $contact ) {
+			if ( $this->contact_has_email( $contact, $email ) ) {
+				return $contact;
+			}
+		}
+
+		return null;
 	}
 
 	/**
@@ -384,6 +527,77 @@ final class GHL_Client {
 		}
 
 		return __( 'Verified', 'ghl-contact-sync' );
+	}
+
+	/**
+	 * Extract contacts from a contacts response body.
+	 *
+	 * @param array $body Response body.
+	 * @return array
+	 */
+	private function extract_contacts( array $body ) {
+		if ( isset( $body['contacts'] ) && is_array( $body['contacts'] ) ) {
+			return $body['contacts'];
+		}
+
+		if ( isset( $body['contact'] ) && is_array( $body['contact'] ) ) {
+			return array( $body['contact'] );
+		}
+
+		if ( isset( $body[0] ) && is_array( $body[0] ) ) {
+			return $body;
+		}
+
+		return array();
+	}
+
+	/**
+	 * Extract a contact ID from known response shapes.
+	 *
+	 * @param array $contact Contact data.
+	 * @return string
+	 */
+	private function extract_contact_id( array $contact ) {
+		if ( ! empty( $contact['id'] ) ) {
+			return sanitize_text_field( $contact['id'] );
+		}
+
+		if ( ! empty( $contact['contactId'] ) ) {
+			return sanitize_text_field( $contact['contactId'] );
+		}
+
+		return '';
+	}
+
+	/**
+	 * Check whether contact data contains an exact email match.
+	 *
+	 * @param array  $contact Contact data.
+	 * @param string $email Email address.
+	 * @return bool
+	 */
+	private function contact_has_email( array $contact, $email ) {
+		$email = strtolower( sanitize_email( $email ) );
+
+		foreach ( array( 'email', 'Email' ) as $key ) {
+			if ( ! empty( $contact[ $key ] ) && is_string( $contact[ $key ] ) && strtolower( sanitize_email( $contact[ $key ] ) ) === $email ) {
+				return true;
+			}
+		}
+
+		if ( ! empty( $contact['additionalEmails'] ) && is_array( $contact['additionalEmails'] ) ) {
+			foreach ( $contact['additionalEmails'] as $additional_email ) {
+				if ( is_array( $additional_email ) ) {
+					$additional_email = $additional_email['email'] ?? '';
+				}
+
+				if ( is_string( $additional_email ) && strtolower( sanitize_email( $additional_email ) ) === $email ) {
+					return true;
+				}
+			}
+		}
+
+		return false;
 	}
 
 	/**

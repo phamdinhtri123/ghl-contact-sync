@@ -314,7 +314,7 @@ final class Form_Renderer {
 		}
 
 		$client = new GHL_Client( get_option( 'ghlcs_settings', array() ) );
-		$result = $client->create_contact( $payload );
+		$result = $client->save_contact_by_email( $payload );
 
 		if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
 			$message = is_wp_error( $result ) ? $result->get_error_message() : ( $result['message'] ?? __( 'GHL sync failed.', 'ghl-contact-sync' ) );

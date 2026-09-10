@@ -182,10 +182,10 @@ final class GHL_Cart_Sync_Service {
 			$payload['customFields'] = $custom_fields;
 		}
 
-		$result = $client->upsert_contact( $payload );
+		$result = $client->save_contact_by_email( $payload );
 
 		if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
-			return is_wp_error( $result ) ? $result : new \WP_Error( 'ghlcs_upsert_failed', $result['message'] ?? __( 'GHL contact upsert failed.', 'ghl-contact-sync' ) );
+			return is_wp_error( $result ) ? $result : new \WP_Error( 'ghlcs_contact_sync_failed', $result['message'] ?? __( 'GHL contact sync failed.', 'ghl-contact-sync' ) );
 		}
 
 		$contact_id = $result['body']['contact']['id'] ?? ( $result['body']['id'] ?? ( $result['body']['contactId'] ?? '' ) );
