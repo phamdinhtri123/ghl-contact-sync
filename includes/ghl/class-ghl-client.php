@@ -202,6 +202,11 @@ final class GHL_Client {
 
 			$result = $this->update_contact( $contact_id, $contact );
 
+			if ( ! empty( $contact['phone'] ) && $this->is_duplicate_contact_error( $result ) ) {
+				unset( $contact['phone'] );
+				$result = $this->update_contact( $contact_id, $contact );
+			}
+
 			if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
 				return $result;
 			}
@@ -221,7 +226,14 @@ final class GHL_Client {
 			return $result;
 		}
 
-		return $this->create_contact( $contact );
+		$result = $this->create_contact( $contact );
+
+		if ( ! empty( $contact['phone'] ) && $this->is_duplicate_contact_error( $result ) ) {
+			unset( $contact['phone'] );
+			$result = $this->create_contact( $contact );
+		}
+
+		return $result;
 	}
 
 	/**
@@ -598,6 +610,24 @@ final class GHL_Client {
 		}
 
 		return false;
+	}
+
+	/**
+	 * Check whether a GHL response failed because duplicate contacts are blocked.
+	 *
+	 * @param mixed $result API result.
+	 * @return bool
+	 */
+	private function is_duplicate_contact_error( $result ) {
+		if ( is_wp_error( $result ) || ! is_array( $result ) || ! empty( $result['success'] ) ) {
+			return false;
+		}
+
+		$message = strtolower( (string) ( $result['message'] ?? '' ) );
+		$body    = ! empty( $result['body'] ) && is_array( $result['body'] ) ? strtolower( wp_json_encode( $result['body'] ) ) : '';
+		$text    = $message . ' ' . $body;
+
+		return false !== strpos( $text, 'duplicate' ) || false !== strpos( $text, 'duplicated contact' );
 	}
 
 	/**
