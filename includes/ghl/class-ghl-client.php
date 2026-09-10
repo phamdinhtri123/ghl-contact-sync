@@ -385,6 +385,54 @@ final class GHL_Client {
 	}
 
 	/**
+	 * Find or create a contact custom field and return its ID.
+	 *
+	 * @param string $name Field name.
+	 * @param string $data_type Field data type.
+	 * @return string|\WP_Error
+	 */
+	public function get_or_create_contact_custom_field_id( $name, $data_type = 'TEXT' ) {
+		$name = sanitize_text_field( $name );
+
+		if ( '' === $name ) {
+			return new \WP_Error( 'ghlcs_missing_custom_field_name', __( 'Custom field name is required.', 'ghl-contact-sync' ) );
+		}
+
+		$fields_response = $this->get_contact_custom_fields();
+
+		if ( is_wp_error( $fields_response ) ) {
+			return $fields_response;
+		}
+
+		if ( empty( $fields_response['success'] ) ) {
+			return new \WP_Error( 'ghlcs_custom_fields_fetch_failed', $fields_response['message'] ?? __( 'Could not fetch GHL custom fields.', 'ghl-contact-sync' ) );
+		}
+
+		$field_id = $this->find_custom_field_id_by_name( $this->extract_custom_fields( $fields_response['body'] ), $name );
+
+		if ( '' !== $field_id ) {
+			return $field_id;
+		}
+
+		$created = $this->create_contact_custom_field( $name, $data_type );
+
+		if ( is_wp_error( $created ) ) {
+			return $created;
+		}
+
+		if ( empty( $created['success'] ) ) {
+			return new \WP_Error( 'ghlcs_custom_field_create_failed', $created['message'] ?? __( 'Could not create GHL custom field.', 'ghl-contact-sync' ) );
+		}
+
+		$field = $created['body']['customField'] ?? ( $created['body']['field'] ?? $created['body'] );
+		if ( is_array( $field ) && ! empty( $field['id'] ) ) {
+			return sanitize_text_field( $field['id'] );
+		}
+
+		return new \WP_Error( 'ghlcs_custom_field_id_missing', __( 'GHL custom field was created but no field ID was returned.', 'ghl-contact-sync' ) );
+	}
+
+	/**
 	 * Add tags to one contact without replacing existing tags.
 	 *
 	 * @param string $contact_id GHL contact ID.
@@ -561,6 +609,43 @@ final class GHL_Client {
 		}
 
 		return array();
+	}
+
+	/**
+	 * Extract contact custom fields from known response shapes.
+	 *
+	 * @param array $body Response body.
+	 * @return array
+	 */
+	private function extract_custom_fields( array $body ) {
+		$source = $body['customFields'] ?? ( $body['fields'] ?? array() );
+
+		return is_array( $source ) ? $source : array();
+	}
+
+	/**
+	 * Find a custom field ID by display name.
+	 *
+	 * @param array  $fields Fields.
+	 * @param string $name Field name.
+	 * @return string
+	 */
+	private function find_custom_field_id_by_name( array $fields, $name ) {
+		$target = strtolower( trim( (string) $name ) );
+
+		foreach ( $fields as $field ) {
+			if ( ! is_array( $field ) || empty( $field['id'] ) ) {
+				continue;
+			}
+
+			$field_name = $field['name'] ?? ( $field['fieldKey'] ?? '' );
+
+			if ( $target === strtolower( trim( (string) $field_name ) ) ) {
+				return sanitize_text_field( $field['id'] );
+			}
+		}
+
+		return '';
 	}
 
 	/**

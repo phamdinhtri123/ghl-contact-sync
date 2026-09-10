@@ -314,6 +314,25 @@ final class Form_Renderer {
 		}
 
 		$client = new GHL_Client( get_option( 'ghlcs_settings', array() ) );
+		$custom_fields = $this->form_custom_fields( $form, $submission_data, $client );
+
+		if ( is_wp_error( $custom_fields ) ) {
+			$repository->update_sync(
+				$submission_id,
+				array(
+					'sync_status'   => 'failed',
+					'sync_attempts' => 1,
+					'last_error'    => $custom_fields->get_error_message(),
+				)
+			);
+
+			return;
+		}
+
+		if ( ! empty( $custom_fields ) ) {
+			$payload['customFields'] = $custom_fields;
+		}
+
 		$result = $client->save_contact_by_email( $payload );
 
 		if ( is_wp_error( $result ) || empty( $result['success'] ) ) {
@@ -340,6 +359,51 @@ final class Form_Renderer {
 				'ghl_contact_id' => $contact_id,
 			)
 		);
+	}
+
+	/**
+	 * Build form-specific custom fields for GHL.
+	 *
+	 * @param array      $form Form config.
+	 * @param array      $submission_data Submitted data.
+	 * @param GHL_Client $client GHL client.
+	 * @return array|\WP_Error
+	 */
+	private function form_custom_fields( array $form, array $submission_data, GHL_Client $client ) {
+		$fields = array();
+		$values = array(
+			'submitted_phone' => array(
+				'name'  => apply_filters( 'ghlcs_submitted_phone_custom_field_name', __( 'Submitted Phone', 'ghl-contact-sync' ), $form ),
+				'type'  => 'TEXT',
+				'value' => $submission_data['phone'] ?? '',
+			),
+			'message'         => array(
+				'name'  => apply_filters( 'ghlcs_message_custom_field_name', __( 'Message', 'ghl-contact-sync' ), $form ),
+				'type'  => 'LARGE_TEXT',
+				'value' => $submission_data['message'] ?? '',
+			),
+		);
+
+		foreach ( $values as $config ) {
+			$value = isset( $config['value'] ) ? trim( (string) $config['value'] ) : '';
+
+			if ( '' === $value ) {
+				continue;
+			}
+
+			$field_id = $client->get_or_create_contact_custom_field_id( $config['name'], $config['type'] );
+
+			if ( is_wp_error( $field_id ) ) {
+				return $field_id;
+			}
+
+			$fields[] = array(
+				'id'         => $field_id,
+				'fieldValue' => sanitize_textarea_field( $value ),
+			);
+		}
+
+		return $fields;
 	}
 
 	/**
