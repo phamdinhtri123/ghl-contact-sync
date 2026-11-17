@@ -400,12 +400,12 @@ final class GHL_Client {
 
 		$fields_response = $this->get_contact_custom_fields();
 
-		if ( is_wp_error( $fields_response ) ) {
-			return $fields_response;
-		}
-
-		if ( empty( $fields_response['success'] ) ) {
-			return new \WP_Error( 'ghlcs_custom_fields_fetch_failed', $fields_response['message'] ?? __( 'Could not fetch GHL custom fields.', 'ghl-contact-sync' ) );
+		if ( is_wp_error( $fields_response ) || empty( $fields_response['success'] ) ) {
+			$message = is_wp_error( $fields_response ) ? $fields_response->get_error_message() : $fields_response['message'];
+			return new \WP_Error(
+				'ghlcs_custom_fields_fetch_failed',
+				sprintf( __( 'Reading contact custom fields to find "%1$s" failed. %2$s', 'ghl-contact-sync' ), $name, $message )
+			);
 		}
 
 		$field_id = $this->find_custom_field_id_by_name( $this->extract_custom_fields( $fields_response['body'] ), $name );
@@ -416,12 +416,12 @@ final class GHL_Client {
 
 		$created = $this->create_contact_custom_field( $name, $data_type );
 
-		if ( is_wp_error( $created ) ) {
-			return $created;
-		}
-
-		if ( empty( $created['success'] ) ) {
-			return new \WP_Error( 'ghlcs_custom_field_create_failed', $created['message'] ?? __( 'Could not create GHL custom field.', 'ghl-contact-sync' ) );
+		if ( is_wp_error( $created ) || empty( $created['success'] ) ) {
+			$message = is_wp_error( $created ) ? $created->get_error_message() : $created['message'];
+			return new \WP_Error(
+				'ghlcs_custom_field_create_failed',
+				sprintf( __( 'Creating contact custom field "%1$s" failed. %2$s', 'ghl-contact-sync' ), $name, $message )
+			);
 		}
 
 		$field = $created['body']['customField'] ?? ( $created['body']['field'] ?? $created['body'] );
@@ -523,6 +523,7 @@ final class GHL_Client {
 	 * @return array|\WP_Error
 	 */
 	private function request( $path, $token, $version = self::API_VERSION, $method = 'GET', array $body = array() ) {
+		$endpoint = strtoupper( $method ) . ' /' . ltrim( explode( '?', $path, 2 )[0], '/' );
 		$args = array(
 			'timeout' => 20,
 			'headers' => array(
@@ -544,7 +545,17 @@ final class GHL_Client {
 		);
 
 		if ( is_wp_error( $response ) ) {
-			return new \WP_Error( 'ghlcs_connection_failed', __( 'GHL API connection timeout or network error.', 'ghl-contact-sync' ) );
+			$message = sprintf(
+				'GHL %1$s [API %2$s] %3$s - %4$s',
+				$endpoint,
+				$version,
+				$response->get_error_code(),
+				$response->get_error_message()
+			);
+			return new \WP_Error(
+				'ghlcs_connection_failed',
+				sanitize_text_field( str_replace( $token, '[redacted]', $message ) )
+			);
 		}
 
 		$code = (int) wp_remote_retrieve_response_code( $response );
@@ -559,11 +570,19 @@ final class GHL_Client {
 			);
 		}
 
+		$message = sprintf(
+			'GHL %1$s [HTTP %2$d, API %3$s] %4$s',
+			$endpoint,
+			$code,
+			$version,
+			$this->friendly_error_message( $code, is_array( $body ) ? $body : array() )
+		);
+
 		return array(
 			'success' => false,
 			'code'    => $code,
 			'body'    => is_array( $body ) ? $body : array(),
-			'message' => $this->friendly_error_message( $code, is_array( $body ) ? $body : array() ),
+			'message' => sanitize_text_field( str_replace( $token, '[redacted]', $message ) ),
 		);
 	}
 
@@ -723,16 +742,31 @@ final class GHL_Client {
 	 * @return string
 	 */
 	private function friendly_error_message( $code, array $body ) {
+		$messages = array();
+		foreach ( array( 'message', 'error', 'error_description', 'errors', 'details' ) as $key ) {
+			$value = $body[ $key ] ?? '';
+			if ( is_array( $value ) && ! empty( $value ) ) {
+				$value = wp_json_encode( $value );
+			}
+			if ( is_string( $value ) && '' !== trim( $value ) ) {
+				$messages[] = sanitize_text_field( $value );
+			}
+		}
+
+		if ( ! empty( $messages ) ) {
+			return implode( ' | ', array_unique( $messages ) );
+		}
+
 		if ( 401 === $code ) {
-			return __( 'Invalid Access Token. GHL API returned HTTP 401.', 'ghl-contact-sync' );
+			return __( 'GHL rejected authentication or authorization for this request. Check the token, its scopes, and its Sub-Account access.', 'ghl-contact-sync' );
 		}
 
 		if ( 403 === $code ) {
-			return __( 'Access Token does not have the required Contacts permission.', 'ghl-contact-sync' );
+			return __( 'GHL denied access to this operation. Check the required scopes and Sub-Account access.', 'ghl-contact-sync' );
 		}
 
 		if ( 404 === $code ) {
-			return __( 'Location ID not found or Contacts API endpoint is unavailable.', 'ghl-contact-sync' );
+			return __( 'GHL could not find the requested resource or API endpoint.', 'ghl-contact-sync' );
 		}
 
 		if ( 429 === $code ) {
@@ -741,10 +775,6 @@ final class GHL_Client {
 
 		if ( $code >= 500 ) {
 			return __( 'GHL API is currently unavailable.', 'ghl-contact-sync' );
-		}
-
-		if ( ! empty( $body['message'] ) && is_string( $body['message'] ) ) {
-			return sanitize_text_field( $body['message'] );
 		}
 
 		return sprintf(

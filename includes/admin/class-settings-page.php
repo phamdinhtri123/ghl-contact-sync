@@ -192,10 +192,21 @@ final class Settings_Page {
 						<li><?php esc_html_e( 'Go to Settings -> Private Integrations.', 'ghl-contact-sync' ); ?></li>
 						<li><?php esc_html_e( 'Click Create New Private Integration.', 'ghl-contact-sync' ); ?></li>
 						<li><?php esc_html_e( 'Enter a name for the integration, for example: WordPress - GHL Contact Sync.', 'ghl-contact-sync' ); ?></li>
-						<li><?php esc_html_e( 'Select permissions: Contacts - View Contacts, Contacts - Edit Contacts, Locations - View Locations.', 'ghl-contact-sync' ); ?></li>
+						<li>
+							<?php esc_html_e( 'Select all five permissions used by this plugin.', 'ghl-contact-sync' ); ?>
+							<ul>
+								<li><?php esc_html_e( 'Contacts - View Contacts', 'ghl-contact-sync' ); ?> <code>contacts.readonly</code></li>
+								<li><?php esc_html_e( 'Contacts - Edit Contacts', 'ghl-contact-sync' ); ?> <code>contacts.write</code></li>
+								<li><?php esc_html_e( 'Locations - View Locations', 'ghl-contact-sync' ); ?> <code>locations.readonly</code></li>
+								<li><?php esc_html_e( 'Custom Fields - View Custom Fields', 'ghl-contact-sync' ); ?> <code>locations/customFields.readonly</code></li>
+								<li><?php esc_html_e( 'Custom Fields - Edit Custom Fields', 'ghl-contact-sync' ); ?> <code>locations/customFields.write</code></li>
+							</ul>
+						</li>
 						<li><?php esc_html_e( 'Create the Private Integration.', 'ghl-contact-sync' ); ?></li>
 						<li><?php esc_html_e( 'Copy the generated Access Token and paste it into the Access Token field above.', 'ghl-contact-sync' ); ?></li>
 					</ol>
+					<p><?php esc_html_e( 'Custom Fields permissions are required to find and create fields for Message, Submitted Phone, and abandoned cart data. Both View and Edit Custom Fields are needed for automatic field creation. The plugin does not use the Custom Values API.', 'ghl-contact-sync' ); ?></p>
+					<p><?php esc_html_e( 'An existing contact custom field with the same name is reused within this Location, including fields used by other forms or workflows. New submissions can update that field on the matched contact.', 'ghl-contact-sync' ); ?></p>
 					<p><strong><?php esc_html_e( 'Important:', 'ghl-contact-sync' ); ?></strong> <?php esc_html_e( 'Keep your Access Token secure. Do not share it publicly or expose it in frontend code.', 'ghl-contact-sync' ); ?></p>
 				</div>
 
